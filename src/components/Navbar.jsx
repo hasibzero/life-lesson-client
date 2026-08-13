@@ -12,7 +12,7 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="w-full h-24 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 transition-colors duration-300 relative z-50">
+    <nav className="w-full h-20 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 transition-colors duration-300 relative z-50">
       <div className="max-w-[1920px] mx-auto h-full px-6 lg:px-12 flex items-center justify-between">
         
         {/* === Logo Section (Left) === */}
