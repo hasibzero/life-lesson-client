@@ -2,6 +2,7 @@
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "react-hot-toast";
 
 // FIX: Configured Vercel Geist & Geist Mono fonts using next/font/google for a sleek, modern tech aesthetic
 const geistSans = Geist({
@@ -30,6 +31,8 @@ export default function RootLayout({ children }) {
           disableTransitionOnChange
         >
           {children}
+
+          <Toaster/>
         </ThemeProvider>
       </body>
     </html>
