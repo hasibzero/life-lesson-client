@@ -21,6 +21,9 @@ export const auth = betterAuth({
       isBlocked: {
         defaultValue: false, // Default blocked status for new users
       },
+      plan: {
+        defaultValue: "free", // Default blocked status for new users
+      },
       // Add any additional fields you want to store in the user object here
     },
   }

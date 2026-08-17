@@ -1,3 +1,5 @@
+'use client'
+
 import { authClient } from '@/lib/auth-client'
 import { Avatar, Button } from '@heroui/react'
 import { 
@@ -18,18 +20,45 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
+import toast from "react-hot-toast";
 
 const DashboardSidebar = () => {
   const pathname = usePathname();
+  const [reportedCount, setReportedCount] = useState(0);
 
-  // Helper to check active links
-  const isActive = (path) => pathname === path;
+  // All hooks must be called unconditionally at the top level
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   
   const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
+
+  // Fetch the dynamic reported count on mount
+  useEffect(() => {
+    const fetchReportedCount = async () => {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+        const res = await fetch(`${backendUrl}/api/admin/stats`);
+        if (res.ok) {
+          const data = await res.json();
+          setReportedCount(data.reportedLessons || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching badge count:", error);
+      }
+    };
+
+    fetchReportedCount();
+  }, []);
+
+  // Prevent hydration mismatch effect
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Helper to check active links
+  const isActive = (path) => pathname === path;
   
   const getUserInitial = (name) => {
     return name ? name.charAt(0).toUpperCase() : 'U';
@@ -61,11 +90,6 @@ const DashboardSidebar = () => {
     });
   };
 
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   return (
     <aside className="w-[280px] bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col h-full flex-shrink-0 z-20">
       {/* Logo */}
@@ -86,7 +110,7 @@ const DashboardSidebar = () => {
       <div className="px-6 mb-6">
         <div className="flex items-center gap-3">
           <Avatar className="w-9 h-9 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-bold border border-zinc-300 dark:border-zinc-600">
-            <Avatar.Image src={user?.image || ""} alt={user?.name || "Profile"} />
+            <Avatar.Image src={user?.image || null} alt={user?.name || "Profile"} />
             <Avatar.Fallback>
               {getUserInitial(user?.name)}
             </Avatar.Fallback>
@@ -155,14 +179,16 @@ const DashboardSidebar = () => {
                 <Flag className="w-5 h-5" />
                 Reported Content
               </div>
-              {/* Notification Badge */}
-              <div className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[20px] h-[20px] ${
-                isActive(navLinks.reportedContent) 
-                  ? "bg-white text-[#16A696]" 
-                  : "bg-[#b91c1c] text-white"
-              }`}>
-                5
-              </div>
+              {/* Notification Badge rendered conditionally */}
+              {reportedCount > 0 && (
+                <div className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[20px] h-[20px] ${
+                  isActive(navLinks.reportedContent) 
+                    ? "bg-white text-[#16A696]" 
+                    : "bg-[#b91c1c] text-white"
+                }`}>
+                  {reportedCount}
+                </div>
+              )}
             </Link>
           </>
         ) : (
@@ -242,7 +268,6 @@ const DashboardSidebar = () => {
         </div>
       )}
       
-      {/* If Admin, just add a simple divider to match layout spacing */}
       {user?.role === 'admin' && (
         <div className="px-4">
           <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />

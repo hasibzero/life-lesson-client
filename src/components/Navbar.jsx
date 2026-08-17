@@ -120,7 +120,7 @@ export default function Navbar() {
                       aria-label="User Actions"
                       onAction={(key) => {
                         if (key === 'dashboard') router.push(dashboardLink);
-                        if (key === 'profile') router.push('/profile');
+                        if (key === 'profile') router.push('/dashboard/user/settings');
                         if (key === 'logout') handleSignOut();
                       }}
                     >
@@ -250,7 +250,7 @@ export default function Navbar() {
                   Dashboard
                 </Link>
                 <Link 
-                  href="/profile" 
+                  href="/dashboard/user/settings" 
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="w-full text-center py-3 text-lg font-semibold text-[#2D3748] dark:text-zinc-50 hover:bg-zinc-50 dark:hover:bg-zinc-900 rounded-xl transition-colors border border-zinc-200 dark:border-zinc-800"
                 >

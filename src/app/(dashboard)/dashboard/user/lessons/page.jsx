@@ -169,11 +169,11 @@ export default function MyLessons() {
                         <div className="flex items-center gap-4 text-[14px] text-zinc-600 dark:text-zinc-400">
                           <div className="flex items-center gap-1.5">
                             <Heart className="w-4 h-4" />
-                            <span>{lesson.likesCount || 0}</span>
+                            <span>{lesson.likesCount || 0 || lesson.likes?.length}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <Bookmark className="w-4 h-4" />
-                            <span>0</span> 
+                            <span>{lesson?.savedBy?.length}</span> 
                           </div>
                         </div>
                       </td>
