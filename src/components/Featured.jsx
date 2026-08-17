@@ -21,7 +21,7 @@ export const Featured = () => {
             </div>
             <div>
               <Button className="bg-[#16A696] hover:bg-[#077467] text-white border-0 rounded-none">
-                <Link href="/">View All</Link>
+                <Link href="/lessons">View All</Link>
                 <svg
                   className="w-4 h-4"
                   fill="none"

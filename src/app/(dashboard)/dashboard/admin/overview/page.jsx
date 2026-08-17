@@ -40,10 +40,10 @@ export default function AdminOverviewPage() {
         if (res.ok) {
           const data = await res.json();
           setStats({
-            totalUsers: data.totalUsers,
-            totalLessons: data.totalLessons,
-            activeSubscriptions: data.activeSubscriptions,
-            reportedLessons: data.reportedLessons,
+            totalUsers: data.totalUsers || 0,
+            totalLessons: data.totalLessons || 0,
+            activeSubscriptions: data.activeSubscriptions || 0,
+            reportedLessons: data.reportedLessons || 0,
           });
         } else {
           toast.error("Failed to load platform analytics.");
@@ -62,7 +62,7 @@ export default function AdminOverviewPage() {
   const firstName = user?.name ? user.name.split(" ")[0] : "Admin";
 
   return (
-    <div className="w-full flex flex-col gap-10">
+    <div className="w-full flex flex-col gap-10 font-sans">
       
       {/* === Header Row === */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -99,7 +99,7 @@ export default function AdminOverviewPage() {
           </div>
           <div>
             <h2 className="text-[32px] font-extrabold text-[#1a202c] dark:text-white leading-tight">
-              {isLoading ? <Spinner size="sm" color="current" /> : stats.totalUsers}
+              {isLoading ? <Spinner size="sm" color="current" /> : stats.totalUsers.toLocaleString()}
             </h2>
             <div className="flex items-center gap-1 text-[13px] font-semibold text-[#16A696] mt-2">
               <TrendingUp className="w-4 h-4" />
@@ -118,7 +118,7 @@ export default function AdminOverviewPage() {
           </div>
           <div>
             <h2 className="text-[32px] font-extrabold text-[#1a202c] dark:text-white leading-tight">
-              {isLoading ? <Spinner size="sm" color="current" /> : stats.totalLessons}
+              {isLoading ? <Spinner size="sm" color="current" /> : stats.totalLessons.toLocaleString()}
             </h2>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2">
               Active 
@@ -126,21 +126,21 @@ export default function AdminOverviewPage() {
           </div>
         </div>
 
-        {/* Card 3: Active Subscriptions */}
+        {/* Card 3: Pro Subscriptions (Only Premium Users) */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[15px] font-semibold text-zinc-700 dark:text-zinc-300">
-              Active Subscriptions
+              Pro Subscriptions
             </span>
             <CreditCard className="w-5 h-5 text-zinc-400" />
           </div>
           <div>
             <h2 className="text-[32px] font-extrabold text-[#1a202c] dark:text-white leading-tight">
-              {isLoading ? <Spinner size="sm" color="current" /> : stats.activeSubscriptions}
+              {isLoading ? <Spinner size="sm" color="current" /> : stats.activeSubscriptions.toLocaleString()}
             </h2>
             <div className="flex items-center gap-1 text-[13px] font-semibold text-[#16A696] mt-2">
               <TrendingUp className="w-4 h-4" />
-              <span>Premium </span>
+              <span>Premium tier</span>
             </div>
           </div>
         </div>
@@ -155,7 +155,7 @@ export default function AdminOverviewPage() {
           </div>
           <div>
             <h2 className="text-[32px] font-extrabold text-red-600 dark:text-red-400 leading-tight">
-              {isLoading ? <Spinner size="sm" color="current" /> : stats.reportedLessons}
+              {isLoading ? <Spinner size="sm" color="current" /> : stats.reportedLessons.toLocaleString()}
             </h2>
             <p className="text-[13px] font-semibold text-red-600 dark:text-red-400 mt-2">
               Requires attention
