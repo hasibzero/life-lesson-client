@@ -1,173 +1,281 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@heroui/react';
+import { Button, Chip, Spinner } from '@heroui/react';
+import { authClient } from '@/lib/auth-client';
+import { Check, X as CrossIcon, Star, ShieldCheck, Zap, ArrowRight } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-// === Reusable SVGs ===
-const CheckIcon = ({ className }) => (
-  <svg className={`w-5 h-5 ${className}`} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M8.5 12L11 14.5L15.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
+export default function PricingPage() {
+  const { data: session, isPending } = authClient.useSession();
+  const user = session?.user;
+  const isPremiumUser = user?.role === 'admin' || user?.plan === 'premium' || user?.isPremium;
+  const [isProcessing, setIsProcessing] = useState(false);
 
-const DashIcon = ({ className }) => (
-  <svg className={`w-5 h-5 ${className}`} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M8 12H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
-
-export default function Pricing() {
-  // Pricing Features Data
-  const features = [
-    { name: 'Access to all lessons', free: true, premium: true },
-    { name: 'Expert-curated pathways', free: false, premium: true },
-    { name: 'Downloadable resources', free: false, premium: true },
-    { name: 'Direct author Q&A', free: false, premium: true },
-    { name: 'Ad-free experience', free: false, premium: true },
-    { name: 'Exclusive webinars', free: false, premium: true },
-    { name: 'Priority support', free: false, premium: true },
-    { name: 'Certification', free: false, premium: true },
+  const comparisonRows = [
+    {
+      feature: 'Number of lessons created',
+      free: 'Up to 3 lessons',
+      premium: 'Unlimited lessons',
+      highlight: true
+    },
+    {
+      feature: 'Premium lesson creation',
+      free: false,
+      premium: true
+    },
+    {
+      feature: 'Access to premium user content',
+      free: false,
+      premium: true
+    },
+    {
+      feature: 'Priority listing on browse page',
+      free: false,
+      premium: true
+    },
+    {
+      feature: '100% Ad-free experience',
+      free: false,
+      premium: true
+    },
+    {
+      feature: 'Community badge / verified status',
+      free: false,
+      premium: 'Premium ⭐'
+    },
+    {
+      feature: 'Direct author Q&A & comments',
+      free: true,
+      premium: true
+    },
+    {
+      feature: 'Downloadable resources & exports',
+      free: false,
+      premium: true
+    }
   ];
 
+  const handleStripeCheckout = async () => {
+    if (!user) {
+      toast.error('Please log in to upgrade your account.');
+      return;
+    }
+
+    setIsProcessing(true);
+    const toastId = toast.loading('Connecting to secure checkout...');
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+
+    try {
+      const response = await fetch(`${backendUrl}/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+          name: user.name
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.url) {
+        toast.dismiss(toastId);
+        window.location.href = data.url;
+      } else {
+        toast.error(data.message || 'Unable to start checkout session.', { id: toastId });
+        setIsProcessing(false);
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      toast.error('Server error connecting to payment gateway.', { id: toastId });
+      setIsProcessing(false);
+    }
+  };
+
+  if (isPending) {
+    return (
+      <div className="w-full min-h-[70vh] flex items-center justify-center">
+        <Spinner size="lg" color="current" className="text-[#0f766e]" />
+      </div>
+    );
+  }
+
+  // Active Premium State View
+  if (isPremiumUser) {
+    return (
+      <div className="w-full min-h-[75vh] flex items-center justify-center px-4 py-16 font-sans">
+        <div className="max-w-xl w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 sm:p-12 text-center shadow-lg flex flex-col items-center">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-6 border border-amber-200/60 dark:border-amber-500/20">
+            <Star className="w-8 h-8 fill-amber-500 text-amber-500" />
+          </div>
+          
+          <Chip className="bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 font-bold px-3 py-1 mb-4 border border-amber-200/50">
+            Premium ⭐ Active
+          </Chip>
+          
+          <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight mb-3">
+            You Have Lifetime Access
+          </h1>
+          <p className="text-[15px] text-zinc-600 dark:text-zinc-400 leading-relaxed mb-8 max-w-md">
+            Your account is already unlocked with full creator tools, unlimited publishing, and complete access to all premium wisdom modules.
+          </p>
+
+          <Link href={user?.role === 'admin' ? '/dashboard/admin/overview' : '/dashboard/user/overview'} className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold px-8 py-3 rounded-xl transition-all shadow-sm">
+              Go to Dashboard <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <section className="w-full bg-slate-50 dark:bg-[#000000] py-20 px-4 md:px-8 transition-colors duration-300">
-      {/* Optimized Background for Light and Dark Mode */}
-      
-      {/* Header Area */}
-      <div className="max-w-[800px] mx-auto text-center mb-16">
-        {/* Optimized Text Colors */}
-        <h2 className="text-3xl md:text-[40px] font-bold text-[#1e293b] dark:text-slate-200 mb-4 transition-colors">
-          Choose Your Path to Wisdom
-        </h2>
-        <p className="text-[15px] text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-[600px] mx-auto transition-colors">
-          Unlock expert-curated pathways, direct author Q&As, and exclusive certification to accelerate your professional growth.
-        </p>
-      </div>
-
-      {/* Pricing Grid Layout */}
-      <div className="max-w-[1000px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-black py-16 px-4 sm:px-8 lg:px-16 font-sans">
+      <div className="max-w-5xl mx-auto flex flex-col gap-12">
         
-        {/* === Left Column: Feature Names (Desktop Only) === */}
-        <div className="hidden lg:flex flex-col">
-          {/* Header Spacer to perfectly align with Card Headers */}
-          <div className="h-[140px] flex items-end pb-6 px-2">
-            <h3 className="text-xl font-bold text-[#1e293b] dark:text-slate-300 transition-colors">Features</h3>
-          </div>
+        {/* Header */}
+        <div className="text-center max-w-2xl mx-auto flex flex-col gap-3">
           
-          {/* Mapped Feature Names */}
-          {features.map((feature, idx) => (
-            <div 
-              key={idx} 
-              // Optimized Border and Text Colors
-              className="h-[60px] flex items-center border-b border-zinc-200 dark:border-zinc-800 px-2 transition-colors"
-            >
-              <span className="text-[14px] text-zinc-500 dark:text-zinc-400 transition-colors">{feature.name}</span>
-            </div>
-          ))}
-          
-          {/* Footer Spacer to perfectly align with Card Buttons */}
-          <div className="h-[100px]"></div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+            Upgrade to Lifetime Premium
+          </h1>
+          <p className="text-[15px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
+            One single payment. Unlimited publishing, exclusive community perks, and full access to every premium lesson forever.
+          </p>
         </div>
 
-        {/* === Middle Column: Free Plan === */}
-        {/* Card remains white even in dark mode to match design intent */}
-        <div className="bg-gray-400 rounded-xl flex flex-col pt-8 pb-8 px-6 shadow-lg relative">
+        {/* Pricing Tier Highlights Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
           
-          {/* Free Header */}
-          <div className="h-[108px] flex flex-col items-center justify-start text-center">
-            <h3 className="text-3xl font-bold text-[#0f172a] mb-2">Free</h3>
-            <div className="flex items-baseline gap-1">
-              <span className="text-[18px] font-bold text-[#0b8a78]">$0</span>
-              <span className="text-[14px] text-zinc-500">/mo</span>
+          {/* Free Standard Tier */}
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 flex flex-col justify-between shadow-sm">
+            <div>
+              <span className="text-[13px] font-bold uppercase tracking-wider text-zinc-400">Current Plan</span>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mt-1">Free Tier</h2>
+              <div className="flex items-baseline gap-1 my-4">
+                <span className="text-4xl font-extrabold text-zinc-900 dark:text-white">৳0</span>
+                <span className="text-zinc-500 text-[14px]">/ lifetime</span>
+              </div>
+              <p className="text-[14px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                Basic access to browse community modules with limited lesson contributions.
+              </p>
+            </div>
+            
+            <div className="pt-8">
+              <Button disabled variant="bordered" className="w-full border-zinc-200 dark:border-zinc-800 text-zinc-400 font-semibold rounded-xl py-6 cursor-not-allowed">
+                Your Current Tier
+              </Button>
             </div>
           </div>
 
-          {/* Free Features */}
-          <div className="flex flex-col w-full">
-            {features.map((feature, idx) => (
-              <div 
-                key={idx} 
-                className="h-[60px] flex items-center justify-between lg:justify-center border-b border-zinc-100"
-              >
-                {/* Visible only on mobile inside the card */}
-                <span className="lg:hidden text-[14px] text-zinc-600">{feature.name}</span>
-                
-                {feature.free ? (
-                  <CheckIcon className="text-[#0b8a78]" />
-                ) : (
-                  <DashIcon className="text-zinc-300" />
-                )}
+          {/* Premium Lifetime Tier */}
+          <div className="bg-gradient-to-br from-[#0f766e] to-[#115e59] text-white rounded-3xl p-8 flex flex-col justify-between shadow-xl relative overflow-hidden ring-2 ring-[#0f766e]">
+            <div className="absolute top-4 right-4 bg-amber-400 text-zinc-950 text-[11px] font-extrabold px-3 py-1 rounded-full shadow-sm">
+              ONE-TIME PAYMENT
+            </div>
+
+            <div>
+              <span className="text-[13px] font-bold uppercase tracking-wider text-teal-200">Lifetime Access</span>
+              <h2 className="text-2xl font-extrabold text-white mt-1">Premium Member</h2>
+              <div className="flex items-baseline gap-1.5 my-4">
+                <span className="text-5xl font-extrabold tracking-tight">৳1,500</span>
+                <span className="text-teal-100 text-[15px] font-medium">/ one-time</span>
               </div>
-            ))}
+              <p className="text-[14px] text-teal-50 leading-relaxed">
+                Unlock unrestricted creation, verified badge, ad-free reading, and full premium catalog access.
+              </p>
+            </div>
+
+            <div className="pt-8">
+              <Button
+                onClick={handleStripeCheckout}
+                disabled={isProcessing}
+                className="w-full bg-white hover:bg-zinc-100 text-[#0f766e] font-extrabold text-[15px] rounded-xl py-6 transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isProcessing ? <Spinner size="sm" color="current" /> : <>Upgrade to Premium <ArrowRight className="w-4 h-4" /></>}
+              </Button>
+            </div>
           </div>
 
-          {/* Free Action Button */}
-          <div className="h-[100px] flex flex-col justify-end mt-4">
-            <Button 
-              variant="bordered"
-              radius="sm"
-              className="w-full border-zinc-300 text-[#4f46e5] font-semibold hover:bg-zinc-50 p-0 bg-white"
-            >
-              <Link href="/signup" className="flex items-center justify-center w-full h-full py-4 text-[14px]">
-                Current Plan
-              </Link>
-            </Button>
+        </div>
+
+        {/* Free vs Premium Comparison Table */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden flex flex-col">
+          <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
+              Feature Breakdown & Comparison
+            </h2>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+              Detailed breakdown of features included across both tiers.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[640px]">
+              <thead>
+                <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[13px] font-bold text-zinc-500 uppercase tracking-wider bg-zinc-50/50 dark:bg-zinc-900/50">
+                  <th className="py-4 px-6 w-1/2">Features</th>
+                  <th className="py-4 px-6 text-center w-1/4">Free</th>
+                  <th className="py-4 px-6 text-center w-1/4 text-[#0f766e] dark:text-[#16A696]">Premium</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 text-[14px]">
+                {comparisonRows.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors">
+                    
+                    {/* Feature Title */}
+                    <td className="py-4 px-6 font-semibold text-zinc-800 dark:text-zinc-200">
+                      {row.feature}
+                    </td>
+
+                    {/* Free Column */}
+                    <td className="py-4 px-6 text-center">
+                      {typeof row.free === 'boolean' ? (
+                        row.free ? (
+                          <Check className="w-5 h-5 text-emerald-600 mx-auto" />
+                        ) : (
+                          <CrossIcon className="w-5 h-5 text-zinc-300 dark:text-zinc-600 mx-auto" />
+                        )
+                      ) : (
+                        <span className="font-semibold text-zinc-500">{row.free}</span>
+                      )}
+                    </td>
+
+                    {/* Premium Column */}
+                    <td className="py-4 px-6 text-center bg-teal-50/30 dark:bg-teal-950/10">
+                      {typeof row.premium === 'boolean' ? (
+                        row.premium ? (
+                          <Check className="w-5 h-5 text-[#0f766e] dark:text-[#16A696] font-bold mx-auto" />
+                        ) : (
+                          <CrossIcon className="w-5 h-5 text-zinc-300 dark:text-zinc-600 mx-auto" />
+                        )
+                      ) : (
+                        <span className="font-bold text-[#0f766e] dark:text-[#16A696]">{row.premium}</span>
+                      )}
+                    </td>
+
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* === Right Column: Premium Plan === */}
-        {/* Card remains teal in both modes */}
-        <div className="bg-[#0b8a78] rounded-xl flex flex-col pt-8 pb-8 px-6 shadow-xl relative">
-          
-          {/* Most Popular Badge */}
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#065046] text-white text-[11px] font-bold px-4 py-1.5 rounded-full whitespace-nowrap shadow-sm">
-            Most Popular
-          </div>
-
-          {/* Premium Header */}
-          <div className="h-[108px] flex flex-col items-center justify-start text-center">
-            <h3 className="text-3xl font-bold text-white mb-2">Premium</h3>
-            <div className="flex items-baseline gap-1">
-              <span className="text-[18px] font-bold text-white">$29</span>
-              <span className="text-[14px] text-[#86d9ce]">/mo</span>
-            </div>
-          </div>
-
-          {/* Premium Features */}
-          <div className="flex flex-col w-full">
-            {features.map((feature, idx) => (
-              <div 
-                key={idx} 
-                className="h-[60px] flex items-center justify-between lg:justify-center border-b border-[#129f8c]"
-              >
-                {/* Visible only on mobile inside the card */}
-                <span className="lg:hidden text-[14px] text-white">{feature.name}</span>
-                
-                {feature.premium ? (
-                  <CheckIcon className="text-white" />
-                ) : (
-                  <DashIcon className="text-[#109b86]" />
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Premium Action Button */}
-          <div className="h-[100px] flex flex-col justify-end mt-4">
-            <Button 
-              radius="sm"
-              className="w-full bg-[#086b5e] hover:bg-[#065046] text-white font-semibold shadow-md p-0"
-            >
-              <Link href="/checkout" className="flex items-center justify-center w-full h-full py-4 text-[14px]">
-                Join Premium
-              </Link>
-            </Button>
-          </div>
+        {/* Security & Guarantee Note */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-[13px] text-zinc-500 dark:text-zinc-400 text-center pb-8">
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-[#0f766e]" /> 256-bit Encrypted Stripe Checkout
+          </span>
+          <span>•</span>
+          <span>Instant Account Upgrade</span>
+          <span>•</span>
+          <span>Lifetime Access (No Recurring Fees)</span>
         </div>
 
       </div>
-    </section>
+    </div>
   );
 }

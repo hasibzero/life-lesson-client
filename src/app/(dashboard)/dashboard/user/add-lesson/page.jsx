@@ -8,14 +8,12 @@ import {
   UploadCloud, 
   Save, 
   ArrowUpFromLine, 
-  Lock,
   AlertCircle
 } from 'lucide-react';
-import { Spinner } from '@heroui/react';
+import { Spinner, Tooltip } from '@heroui/react';
 import Link from 'next/link';
 
 export default function AddLesson() {
-  // 1. Added 'reset' from useForm
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
   
   const [accessLevel, setAccessLevel] = useState('Free');
@@ -55,6 +53,13 @@ export default function AddLesson() {
     fetchLessonCount();
   }, [user?.id]);
 
+  // Ensure non-premium users are always defaulted to Free
+  useEffect(() => {
+    if (!isPremiumUser) {
+      setAccessLevel('Free');
+    }
+  }, [isPremiumUser]);
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -70,7 +75,11 @@ export default function AddLesson() {
 
     setIsSubmitting(true);
     setSubmitType(actionRef.current);
-    const toastId = toast.loading(`${actionRef.current === 'draft' ? 'Saving draft' : 'Publishing lesson'}...`);
+    const toastId = toast.loading(
+      actionRef.current === 'draft' 
+        ? 'Saving draft...' 
+        : 'Submitting lesson for review...'
+    );
 
     let uploadedImageUrl = "";
 
@@ -106,14 +115,14 @@ export default function AddLesson() {
       description: data.description,
       category: data.category,
       emotionalTone: data.emotionalTone || "Neutral", 
-      visibility: actionRef.current === 'draft' ? 'Private' : 'Public',
-      accessLevel: accessLevel,
+      visibility: actionRef.current === 'draft' ? 'Draft' : 'Public',
+      accessLevel: isPremiumUser ? accessLevel : 'Free',
       creatorId: user?.id || null, 
       coverImage: uploadedImageUrl, 
       likes: [],
       likesCount: 0,
       isFeatured: false,
-      isReviewed: false,
+      isReviewed: false, // Added in review pending admin inspection
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -130,14 +139,16 @@ export default function AddLesson() {
       });
 
       if (response.ok) {
-        toast.success(`Lesson successfully ${actionRef.current === 'draft' ? 'saved as draft' : 'published'}!`, { id: toastId });
+        const successMessage = actionRef.current === 'draft' 
+          ? "Lesson successfully saved as draft!" 
+          : "Lesson submitted for review!";
+        
+        toast.success(successMessage, { id: toastId });
         setUserLessonCount(prev => prev + 1);
         
-        // 2. Clear all form fields and local state
         reset();
         setImagePreview(null);
         setAccessLevel('Free');
-        
       } else {
         toast.error("Failed to save lesson.", { id: toastId });
       }
@@ -275,7 +286,7 @@ export default function AddLesson() {
 
             {/* Emotional Tone */}
             <div>
-              <label className=" block text-[13px] font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+              <label className="block text-[13px] font-bold text-zinc-900 dark:text-zinc-100 mb-2">
                 Emotional Tone
               </label>
               <div className="relative">
@@ -296,32 +307,40 @@ export default function AddLesson() {
               </div>
             </div>
 
-            {/* Access Level Custom Toggle */}
+            {/* Access Level Dropdown with Tooltip for Free Users */}
             <div>
               <label className="block text-[13px] font-bold text-zinc-900 dark:text-zinc-100 mb-2">
                 Access Level
               </label>
-              <div className="flex bg-zinc-100 dark:bg-[#18181b] p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 relative">
-                <button 
-                  type="button" 
-                  disabled={hasReachedLimit}
-                  onClick={() => setAccessLevel('Free')} 
-                  className={`flex-1 py-2 rounded-md text-[13px] font-bold flex items-center justify-center gap-2 transition-all duration-200 z-10 disabled:opacity-50 ${hasReachedLimit ? 'cursor-not-allowed' : 'cursor-pointer'} ${accessLevel === 'Free' ? 'text-zinc-900 bg-white dark:bg-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
-                >
-                  Free
-                </button>
-                <button 
-                  type="button" 
-                  disabled={hasReachedLimit}
-                  onClick={() => setAccessLevel('Premium')} 
-                  className={`flex-1 py-2 rounded-md text-[13px] font-bold flex items-center justify-center gap-2 transition-all duration-200 z-10 disabled:opacity-50 ${hasReachedLimit ? 'cursor-not-allowed' : 'cursor-pointer'} ${accessLevel === 'Premium' ? 'text-zinc-900 dark:text-zinc-900 bg-white dark:bg-zinc-100 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  Premium
-                </button>
-              </div>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mt-3 leading-tight">
-                Premium lessons are restricted to paid subscribers.
+              <Tooltip 
+                content="Upgrade to Premium to create paid lessons." 
+                isDisabled={isPremiumUser}
+                placement="top"
+                className="text-xs bg-zinc-900 text-white dark:bg-zinc-800 px-3 py-1.5 rounded-lg shadow-lg border border-zinc-700"
+              >
+                <div className="relative">
+                  <select 
+                    value={accessLevel}
+                    onChange={(e) => setAccessLevel(e.target.value)}
+                    disabled={hasReachedLimit || !isPremiumUser}
+                    className={`w-full appearance-none bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#16A696] transition-colors ${
+                      !isPremiumUser || hasReachedLimit ? 'cursor-not-allowed opacity-60 bg-zinc-100/50 dark:bg-zinc-900/50' : 'cursor-pointer'
+                    }`}
+                  >
+                    <option value="Free" className="dark:bg-zinc-900">Free</option>
+                    <option value="Premium" disabled={!isPremiumUser} className="dark:bg-zinc-900">
+                      Premium {!isPremiumUser ? '(Locked)' : ''}
+                    </option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                  </div>
+                </div>
+              </Tooltip>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mt-2 leading-tight">
+                {isPremiumUser 
+                  ? "Premium lessons are restricted to paid platform subscribers." 
+                  : "Upgrade to Premium to create paid lessons."}
               </p>
             </div>
           </div>
@@ -367,7 +386,7 @@ export default function AddLesson() {
               {isSubmitting && submitType === 'publish' ? (
                 <Spinner size="sm" color="white" />
               ) : (
-                <><ArrowUpFromLine className="w-4 h-4" /> Publish Lesson</>
+                <><ArrowUpFromLine className="w-4 h-4" /> Submit for Review</>
               )}
             </button>
           </div>

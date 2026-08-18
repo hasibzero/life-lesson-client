@@ -4,7 +4,7 @@ import Image from 'next/image';
 
 export default function Footer() {
   return (
-    <div className="w-full bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 transition-colors duration-300">
+    <div className="max-w-[1200px] mx-auto w-full bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 transition-colors duration-300">
       {/* 
         Using md:flex-row to stack vertically on mobile 
         and spread out evenly on desktop 

@@ -1,6 +1,7 @@
 // app/(main)/page.js
 import { Featured } from '@/components/Featured';
 import Hero from '@/components/Hero'; // <-- FIX: Removed curly braces for default import
+import { MostSavedLessons } from '@/components/MostSavedLessons';
 import { TopContributors } from '@/components/TopContributors';
 import WhySection from '@/components/WhySection';
 
@@ -11,6 +12,7 @@ export default function Home() {
       
       <Featured/>
       <TopContributors/>
+      <MostSavedLessons/>
       <WhySection/>
     </div>
   );

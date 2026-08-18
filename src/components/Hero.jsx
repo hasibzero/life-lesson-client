@@ -38,7 +38,7 @@ export default function Hero() {
   ];
 
   return (
-    <section className="w-full h-[600px] relative bg-zinc-100 group">
+    <section className="max-w-[1200px] mx-auto w-full h-[600px] relative bg-zinc-100 group">
       <Swiper
         modules={[Navigation, Pagination, Autoplay]}
         navigation={true}

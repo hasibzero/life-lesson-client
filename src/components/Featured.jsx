@@ -7,7 +7,7 @@ export const Featured = () => {
   return (
     <div>
       <section className="w-full py-10 bg-slate-50 dark:bg-zinc-950 transition-colors duration-300">
-        <div className="min-h-screen mx-auto px-6 lg:px-12">
+        <div className="max-w-[1200px] mx-auto mx-auto px-6 lg:px-12">
           
           {/* Section Header */}
           <div className="flex justify-between items-end mb-8">

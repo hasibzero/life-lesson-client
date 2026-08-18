@@ -71,15 +71,20 @@ export default function BrowseLessonsPage() {
     return new Date(dateString).toLocaleDateString("en-US", options);
   };
 
+  // Only include approved/reviewed lessons
+  const approvedLessons = lessons.filter((lesson) => lesson?.isReviewed === true);
+
   // Filter Logic
-  const filteredLessons = lessons.filter((lesson) => {
-    const matchesSearch = 
+  const filteredLessons = approvedLessons.filter((lesson) => {
+    const matchesSearch =
       lesson.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lesson.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lesson.creatorName?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesCategory = selectedCategory === "All" || lesson.category === selectedCategory;
-    const matchesTone = selectedTone === "All" || lesson.emotionalTone === selectedTone;
+    const matchesCategory =
+      selectedCategory === "All" || lesson.category === selectedCategory;
+    const matchesTone =
+      selectedTone === "All" || lesson.emotionalTone === selectedTone;
 
     return matchesSearch && matchesCategory && matchesTone;
   });
@@ -99,14 +104,14 @@ export default function BrowseLessonsPage() {
   }
 
   return (
-    <div className="w-full min-h-screen text-black  dark:text-white py-12 px-4 sm:px-8 lg:px-16 font-sans">
+    <div className="w-full min-h-screen text-black dark:text-white py-12 px-4 sm:px-8 lg:px-16 font-sans">
       
       {/* Header Section */}
       <div className="max-w-7xl mx-auto mb-10">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2  text-black  dark:text-white">
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2 text-black dark:text-white">
           Browse Lessons
         </h1>
-        <p className="text-[15px] text-zinc-400">
+        <p className="text-[15px] text-zinc-500 dark:text-zinc-400">
           Curated wisdom for professional growth and digital life mastery.
         </p>
       </div>
@@ -117,10 +122,13 @@ export default function BrowseLessonsPage() {
         {/* Search Input */}
         <div className="relative flex-1 w-full flex items-center">
           <Search className="absolute left-4 w-4 h-4 text-zinc-400" />
-          <input 
+          <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Search by keyword, author, or topic..."
             className="w-full bg-[#f9fafb] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-11 pr-4 py-3 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#149788] transition-colors"
           />
@@ -129,56 +137,60 @@ export default function BrowseLessonsPage() {
         {/* Filters Group */}
         <div className="flex items-center gap-3 w-full md:w-auto">
           {/* Category Dropdown */}
-          <select 
+          <select
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value);
+              setCurrentPage(1);
+            }}
             className="cursor-pointer bg-[#f9fafb] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#149788] transition-colors"
           >
-            <option value="All">Category</option>
+            <option value="All">All Categories</option>
             <option value="Productivity">Productivity</option>
             <option value="Career">Career</option>
             <option value="Philosophy">Philosophy</option>
-            <option value="Finance">Finance</option>
-            <option value="Wellness">Wellness</option>
+            <option value="Wealth">Wealth</option>
             <option value="Personal Growth">Personal Growth</option>
           </select>
 
           {/* Emotional Tone Dropdown */}
-          <select 
+          <select
             value={selectedTone}
-            onChange={(e) => setSelectedTone(e.target.value)}
+            onChange={(e) => {
+              setSelectedTone(e.target.value);
+              setCurrentPage(1);
+            }}
             className="cursor-pointer bg-[#f9fafb] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#149788] transition-colors"
           >
-            <option value="All">Emotional Tone</option>
+            <option value="All">All Tones</option>
             <option value="Motivational">Motivational</option>
-            <option value="Tactical">Tactical</option>
-            <option value="Analytical">Analytical</option>
-            <option value="Inspirational">Inspirational</option>
+            <option value="Realization">Realization</option>
             <option value="Calm">Calm</option>
-            <option value="Neutral">Neutral</option>
+            <option value="Energetic">Energetic</option>
           </select>
         </div>
       </div>
 
-      {/* Lessons Grid matching your exact Card structure */}
+      {/* Lessons Grid matching LessonsCard structure */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        {currentLessons?.map((lesson) => {
+        {currentLessons.map((lesson) => {
           const isLocked = lesson?.accessLevel === "Premium" && !isPremiumUser;
 
           return (
             <Card
               key={lesson?._id}
-              className="relative h-full w-full shadow-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950"
+              className="relative h-full w-full shadow-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between"
             >
+              {/* Premium Lock Overlay */}
               {isLocked && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-sm rounded-large">
-                  <div className="w-14 h-14 bg-white dark:bg-zinc-100 rounded-full flex items-center justify-center shadow-sm border border-zinc-200 mb-4">
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-sm rounded-xl">
+                  <div className="w-14 h-14 bg-white dark:bg-zinc-900 rounded-full flex items-center justify-center shadow-sm border border-zinc-200 dark:border-zinc-800 mb-4">
                     <LockIcon />
                   </div>
                   <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-1">
                     Premium Lesson
                   </h3>
-                  <p className="text-[15px] font-medium text-zinc-600 dark:text-zinc-300 mb-6 text-center">
+                  <p className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 mb-6 text-center">
                     {user
                       ? "Upgrade to view this content"
                       : "Sign in & upgrade to view"}
@@ -187,7 +199,7 @@ export default function BrowseLessonsPage() {
                     as={Link}
                     href={user ? "/pricing" : "/signin"}
                     radius="sm"
-                    className="w-full font-semibold text-white shadow-md"
+                    className="w-full font-semibold text-white shadow-md cursor-pointer"
                     style={{ backgroundColor: "#9c5236" }}
                   >
                     {user ? "Upgrade Now" : "Sign In"}
@@ -195,21 +207,22 @@ export default function BrowseLessonsPage() {
                 </div>
               )}
 
-              <Card.Header className="flex justify-between items-start pt-5 px-5">
+              {/* Card Header */}
+              <div className="flex justify-between items-start pt-5 px-5">
                 <div className="flex flex-wrap gap-2">
                   <Chip
                     size="sm"
                     radius="sm"
                     className="bg-[#f0f4fa] text-[#4b5563] dark:bg-zinc-800 dark:text-zinc-300 border-none font-medium"
                   >
-                    {lesson?.category}
+                    {lesson?.category || "General"}
                   </Chip>
                   <Chip
                     size="sm"
                     radius="sm"
                     className="bg-[#6366f1] text-white border-none font-medium"
                   >
-                    {lesson?.emotionalTone || "Neutral"}
+                    {lesson?.emotionalTone || "Motivational"}
                   </Chip>
                 </div>
                 <Chip
@@ -217,17 +230,20 @@ export default function BrowseLessonsPage() {
                   radius="sm"
                   className="bg-[#f0f4fa] text-[#4b5563] dark:bg-zinc-800 dark:text-zinc-400 font-medium"
                 >
-                  {lesson?.accessLevel}
+                  {lesson?.accessLevel || "Free"}
                 </Chip>
-              </Card.Header>
+              </div>
 
-              <Card.Content className="px-5 py-3 flex-grow overflow-visible">
-                <h4 className="text-[20px] font-bold text-[#1a202c] dark:text-white mb-3 leading-tight line-clamp-2">
-                  {lesson?.title}
-                </h4>
-                <p className="text-[15px] text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-8">
-                  {lesson?.description}
-                </p>
+              {/* Card Body */}
+              <div className="px-5 py-3 flex-grow flex flex-col justify-between">
+                <div>
+                  <h4 className="text-[18px] font-bold text-[#1a202c] dark:text-white mb-2 leading-tight line-clamp-2">
+                    {lesson?.title}
+                  </h4>
+                  <p className="text-[14px] text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-6">
+                    {lesson?.description}
+                  </p>
+                </div>
 
                 <div className="mt-auto flex items-center gap-3">
                   <img
@@ -236,30 +252,31 @@ export default function BrowseLessonsPage() {
                       `https://ui-avatars.com/api/?name=${lesson.creatorName || "User"}&background=random`
                     }
                     alt="Creator"
-                    className="w-10 h-10 rounded-full object-cover border border-zinc-200 dark:border-zinc-700"
+                    className="w-9 h-9 rounded-full object-cover border border-zinc-200 dark:border-zinc-700 shrink-0"
                   />
-                  <div className="flex flex-col">
-                    <span className="text-[14px] font-bold text-[#1a202c] dark:text-white leading-none mb-1">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[13px] font-bold text-[#1a202c] dark:text-white leading-none mb-1 truncate">
                       {lesson?.creatorName || "Anonymous"}
                     </span>
-                    <span className="text-[13px] text-zinc-500 font-medium leading-none">
+                    <span className="text-[12px] text-zinc-500 font-medium leading-none">
                       {formatDate(lesson?.createdAt)}
                     </span>
                   </div>
                 </div>
-              </Card.Content>
+              </div>
 
-              <Card.Footer className="px-5 pb-5 pt-4">
+              {/* Card Footer */}
+              <div className="px-5 pb-5 pt-3">
                 <Link href={`/lessons/${lesson?._id}`} className="w-full">
                   <Button
                     radius="sm"
                     variant="bordered"
-                    className="w-full font-semibold border-2 transition-colors hover:bg-[#149788] hover:text-white border-[#149788]"
+                    className="w-full font-semibold border-2 transition-colors hover:bg-[#149788] hover:text-white border-[#149788] text-[#149788] cursor-pointer"
                   >
                     See Details
                   </Button>
                 </Link>
-              </Card.Footer>
+              </div>
             </Card>
           );
         })}
@@ -274,10 +291,10 @@ export default function BrowseLessonsPage() {
       {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 pb-12">
-          <button 
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+          <button
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
-            className="w-10 h-10 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            className="w-10 h-10 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -286,16 +303,20 @@ export default function BrowseLessonsPage() {
             <button
               key={page}
               onClick={() => setCurrentPage(page)}
-              className={`w-10 h-10 rounded-xl font-semibold text-[14px] flex items-center justify-center transition-colors cursor-pointer ${currentPage === page ? 'bg-[#149788] text-white shadow-sm' : 'border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white'}`}
+              className={`w-10 h-10 rounded-xl font-semibold text-[14px] flex items-center justify-center transition-colors cursor-pointer ${
+                currentPage === page
+                  ? "bg-[#149788] text-white shadow-sm"
+                  : "border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white"
+              }`}
             >
               {page}
             </button>
           ))}
 
-          <button 
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+          <button
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
-            className="w-10 h-10 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            className="w-10 h-10 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             <ChevronRight className="w-4 h-4" />
           </button>

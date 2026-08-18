@@ -1,7 +1,21 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { 
+  AlertCircle, 
+  CheckCircle2, 
+  ChevronLeft, 
+  ChevronRight, 
+  Trash2, 
+  Eye, 
+  X, 
+  ShieldCheck, 
+  User, 
+  Clock, 
+  FileText,
+  AlertTriangle
+} from "lucide-react";
 import { Spinner, Button } from "@heroui/react";
 import toast from "react-hot-toast";
 
@@ -9,10 +23,15 @@ export default function ReportedContentPage() {
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 6;
+
+  // Selected Lesson for Details Modal
+  const [selectedLessonGroup, setSelectedLessonGroup] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+  // Fetch Reports
   const fetchReports = async () => {
     try {
       const response = await fetch(`${backendUrl}/api/admin/reports`);
@@ -34,57 +53,104 @@ export default function ReportedContentPage() {
     fetchReports();
   }, [backendUrl]);
 
-  const handleResolveReport = async (reportId) => {
+  // Group open reports by lessonId
+  const openReports = reports.filter((r) => r.status !== "Resolved");
+  const resolvedReportsCount = reports.filter((r) => r.status === "Resolved").length;
+
+  const groupedMap = {};
+  openReports.forEach((report) => {
+    const key = report.lessonId?.toString() || "unknown";
+    if (!groupedMap[key]) {
+      groupedMap[key] = {
+        lessonId: report.lessonId,
+        lessonTitle: report.lessonTitle || "Untitled Lesson",
+        authorName: report.authorName || "Anonymous",
+        reports: [],
+      };
+    }
+    groupedMap[key].reports.push(report);
+  });
+
+  const groupedReportedLessons = Object.values(groupedMap);
+
+  // Pagination Logic
+  const totalPages = Math.ceil(groupedReportedLessons.length / itemsPerPage) || 1;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentLessons = groupedReportedLessons.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Handle Ignore (Clears all reports for this lesson without deleting it)
+  const handleIgnoreReports = async (lessonId) => {
     try {
-      const response = await fetch(`${backendUrl}/api/admin/reports/${reportId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'Resolved' })
+      const response = await fetch(`${backendUrl}/api/admin/reports/lesson/${lessonId}/resolve`, {
+        method: "PATCH",
       });
 
       if (response.ok) {
-        toast.success("Report marked as resolved.");
-        setReports(reports.map(r => r._id === reportId ? { ...r, status: 'Resolved' } : r));
+        toast.success("Reports cleared. Lesson remains active.");
+        setReports((prev) =>
+          prev.map((r) => (r.lessonId === lessonId ? { ...r, status: "Resolved" } : r))
+        );
+        setIsModalOpen(false);
       } else {
-        toast.error("Failed to update status.");
+        // Fallback: resolve reports individually if batch endpoint is not yet mounted
+        const targetReports = openReports.filter((r) => r.lessonId === lessonId);
+        await Promise.all(
+          targetReports.map((r) =>
+            fetch(`${backendUrl}/api/admin/reports/${r._id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "Resolved" }),
+            })
+          )
+        );
+        toast.success("Reports cleared.");
+        setReports((prev) =>
+          prev.map((r) => (r.lessonId === lessonId ? { ...r, status: "Resolved" } : r))
+        );
+        setIsModalOpen(false);
       }
     } catch (error) {
-      toast.error("An error occurred.");
+      console.error("Error ignoring reports:", error);
+      toast.error("Failed to clear reports.");
     }
   };
 
-  const handleDeleteLesson = async (lessonId, reportId) => {
-    if (!window.confirm("Are you sure you want to delete this reported lesson?")) return;
+  // Handle Delete Lesson (Permanently deletes lesson & clears its reports)
+  const handleDeleteLesson = async (lessonId) => {
+    if (!window.confirm("Are you sure you want to permanently delete this lesson? This action cannot be undone.")) {
+      return;
+    }
 
     try {
       const response = await fetch(`${backendUrl}/api/lessons/${lessonId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (response.ok) {
-        toast.success("Lesson deleted successfully.");
-        setReports(reports.map(r => r._id === reportId ? { ...r, status: 'Resolved' } : r));
+        toast.success("Lesson permanently deleted.");
+        // Mark reports for this lesson as resolved in state
+        setReports((prev) =>
+          prev.map((r) => (r.lessonId === lessonId ? { ...r, status: "Resolved" } : r))
+        );
+        setIsModalOpen(false);
       } else {
         toast.error("Failed to delete lesson.");
       }
     } catch (error) {
+      console.error("Error deleting lesson:", error);
       toast.error("Server error while deleting.");
     }
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return "";
-    const options = { year: "numeric", month: "short", day: "2-digit" };
-    return new Date(dateString).toLocaleDateString("en-US", options);
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
-
-  const openReports = reports.filter(r => r.status !== 'Resolved');
-  const resolvedReportsCount = reports.filter(r => r.status === 'Resolved').length;
-
-  const totalPages = Math.ceil(openReports.length / itemsPerPage) || 1;
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentReports = openReports.slice(indexOfFirstItem, indexOfLastItem);
 
   if (isLoading) {
     return (
@@ -95,120 +161,168 @@ export default function ReportedContentPage() {
   }
 
   return (
-    <div className="w-full flex flex-col gap-8 font-sans">
+    <div className="w-full flex flex-col gap-8 font-sans pb-16">
       
+      {/* Header */}
       <div>
         <h1 className="text-3xl font-extrabold text-[#1a202c] dark:text-white tracking-tight">
           Reported Content
         </h1>
         <p className="text-[15px] text-zinc-600 dark:text-zinc-400 mt-1">
-          Review and manage reported lessons to maintain community standards.
+          Review flagged lessons, inspect moderation reasons, and take administrative action.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Metric Cards Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Flagged Lessons */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex items-center justify-between shadow-sm">
           <div className="flex flex-col">
-            <span className="text-[14px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
-              Open Reports
+            <span className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider mb-1">
+              Flagged Lessons
             </span>
-            <span className="text-4xl font-extrabold text-red-600 dark:text-red-400">
-              {openReports.length}
+            <span className="text-3xl font-extrabold text-red-600 dark:text-red-400">
+              {groupedReportedLessons.length}
             </span>
+            <span className="text-[12px] text-zinc-400 mt-1">Requiring decision</span>
           </div>
-          <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center">
             <AlertCircle className="w-6 h-6" />
           </div>
         </div>
 
+        {/* Total Report Tickets */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex items-center justify-between shadow-sm">
           <div className="flex flex-col">
-            <span className="text-[14px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
-              Resolved Today
+            <span className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider mb-1">
+              Total Reports Logged
             </span>
-            <span className="text-4xl font-extrabold text-[#0f766e] dark:text-[#16A696]">
+            <span className="text-3xl font-extrabold text-amber-600 dark:text-amber-400">
+              {openReports.length}
+            </span>
+            <span className="text-[12px] text-zinc-400 mt-1">Open complaints</span>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* Resolved Reports */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex items-center justify-between shadow-sm">
+          <div className="flex flex-col">
+            <span className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider mb-1">
+              Resolved Reports
+            </span>
+            <span className="text-3xl font-extrabold text-[#0f766e] dark:text-[#16A696]">
               {resolvedReportsCount}
             </span>
+            <span className="text-[12px] text-zinc-400 mt-1">Moderated / Cleared</span>
           </div>
-          <div className="w-12 h-12 rounded-full bg-teal-50 dark:bg-teal-500/10 text-[#0f766e] dark:text-[#16A696] flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-500/10 text-[#0f766e] dark:text-[#16A696] flex items-center justify-center">
             <CheckCircle2 className="w-6 h-6" />
           </div>
         </div>
+
       </div>
 
+      {/* Reported Lessons Table */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[13px] font-bold text-zinc-500 uppercase tracking-wider bg-zinc-50/50 dark:bg-zinc-900/50">
-                <th className="py-4 px-6">Reported Lesson</th>
+                <th className="py-4 px-6">Lesson Title</th>
                 <th className="py-4 px-6">Author</th>
-                <th className="py-4 px-6">Reported By</th>
-                <th className="py-4 px-6">Reason</th>
-                <th className="py-4 px-6">Date</th>
-                <th className="py-4 px-6">Status</th>
+                <th className="py-4 px-6 text-center">Report Count</th>
+                <th className="py-4 px-6">Reasons & Reports</th>
                 <th className="py-4 px-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-[14px]">
-              {currentReports.map((report) => (
-                <tr key={report._id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors">
+              {currentLessons.map((group) => (
+                <tr key={group.lessonId} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors">
                   
+                  {/* Lesson Title & Link */}
                   <td className="py-4 px-6 font-bold text-zinc-900 dark:text-white">
-                    {report.lessonTitle || "Untitled Lesson"}
+                    <Link
+                      href={`/lessons/${group.lessonId}`}
+                      target="_blank"
+                      className="hover:text-[#0f766e] dark:hover:text-[#16A696] transition-colors line-clamp-1"
+                    >
+                      {group.lessonTitle}
+                    </Link>
                   </td>
 
-                  <td className="py-4 px-6 text-zinc-600 dark:text-zinc-300 font-medium">
-                    {report.authorName || "Anonymous"}
+                  {/* Author */}
+                  <td className="py-4 px-6 text-zinc-600 dark:text-zinc-300 font-medium whitespace-nowrap">
+                    {group.authorName}
                   </td>
 
-                  {/* Fully Dynamic Reporter Name */}
-                  <td className="py-4 px-6 text-zinc-600 dark:text-zinc-300 font-medium">
-                    {report.userName || "Anonymous"}
-                  </td>
-
-                  <td className="py-4 px-6">
-                    <span className="inline-flex px-3 py-1 rounded-full text-[12px] font-semibold bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-900">
-                      {report.reason || "Inappropriate"}
+                  {/* Report Count */}
+                  <td className="py-4 px-6 text-center whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-extrabold bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-900/50">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                      {group.reports.length} {group.reports.length === 1 ? "Report" : "Reports"}
                     </span>
                   </td>
 
-                  <td className="py-4 px-6 text-zinc-500 dark:text-zinc-400 font-medium">
-                    {formatDate(report.createdAt)}
+                  {/* View Details / Reasons Modal Trigger */}
+                  <td className="py-4 px-6 whitespace-nowrap">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedLessonGroup(group);
+                        setIsModalOpen(true);
+                      }}
+                      className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 font-semibold text-[12px] px-3.5 py-1.5 rounded-xl h-auto transition-colors cursor-pointer flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-zinc-500" /> View Reasons
+                    </Button>
                   </td>
 
-                  <td className="py-4 px-6">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                      Pending
-                    </span>
-                  </td>
-
-                  <td className="py-4 px-6 text-right">
+                  {/* Actions: Ignore / Delete Lesson */}
+                  <td className="py-4 px-6 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-2">
-                      <Button
-                        onClick={() => handleResolveReport(report._id)}
-                        className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold text-[13px] px-4 py-1.5 rounded-xl h-auto transition-colors cursor-pointer"
-                      >
-                        Review
-                      </Button>
+                      
+                      {/* Ignore Action */}
                       <button
-                        onClick={() => handleDeleteLesson(report.lessonId, report._id)}
-                        title="Delete Lesson"
-                        className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 transition-colors cursor-pointer"
+                        onClick={() => handleIgnoreReports(group.lessonId)}
+                        title="Ignore and dismiss all reports for this lesson"
+                        className="px-3.5 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold text-[13px] transition-colors cursor-pointer flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Ignore
                       </button>
+
+                      {/* Delete Action */}
+                      <button
+                        onClick={() => handleDeleteLesson(group.lessonId)}
+                        title="Permanently delete this lesson"
+                        className="px-3.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-semibold text-[13px] transition-colors cursor-pointer flex items-center gap-1.5 border border-red-200 dark:border-red-900/50"
+                      >
+                        <Trash2 className="w-4 h-4" /> Delete Lesson
+                      </button>
+
                     </div>
                   </td>
 
                 </tr>
               ))}
 
-              {currentReports.length === 0 && (
+              {groupedReportedLessons.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-zinc-500">
-                    No open reports found. Everything looks clean!
+                  <td colSpan={5} className="py-16 text-center text-zinc-500">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-teal-50 dark:bg-teal-500/10 text-[#0f766e] dark:text-[#16A696] flex items-center justify-center">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <p className="font-bold text-zinc-800 dark:text-zinc-200 text-base">
+                        No open reports found
+                      </p>
+                      <p className="text-[13px] text-zinc-500 max-w-sm">
+                        All flagged content has been reviewed and resolved. Community content is clean!
+                      </p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -216,22 +330,24 @@ export default function ReportedContentPage() {
           </table>
         </div>
 
+        {/* Pagination Footer */}
         <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
           <span className="text-[14px] text-zinc-500">
-            Showing {openReports.length > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, openReports.length)} of {openReports.length} reports
+            Showing {groupedReportedLessons.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
+            {Math.min(indexOfLastItem, groupedReportedLessons.length)} of {groupedReportedLessons.length} flagged lessons
           </span>
 
           {totalPages > 1 && (
             <div className="flex items-center gap-1.5">
-              <button 
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className="w-9 h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <button 
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
                 className="w-9 h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
@@ -241,6 +357,94 @@ export default function ReportedContentPage() {
           )}
         </div>
       </div>
+
+      {/* REPORT DETAILS MODAL */}
+      {isModalOpen && selectedLessonGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs px-4">
+          <div className="w-full max-w-xl bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-7 shadow-2xl flex flex-col gap-6 max-h-[85vh] overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
+              <div className="flex flex-col pr-4">
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-lg">
+                  <AlertTriangle className="w-5 h-5" />
+                  <h2>Report Details</h2>
+                </div>
+                <span className="text-[15px] font-bold text-zinc-900 dark:text-white mt-1 line-clamp-1">
+                  {selectedLessonGroup.lessonTitle}
+                </span>
+                <span className="text-[12px] text-zinc-500">
+                  Author: {selectedLessonGroup.authorName} • {selectedLessonGroup.reports.length} total reports
+                </span>
+              </div>
+              
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* List of Report Reasons */}
+            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
+              {selectedLessonGroup.reports.map((report, idx) => (
+                <div
+                  key={report._id || idx}
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-4 flex flex-col gap-2.5"
+                >
+                  <div className="flex items-center justify-between text-[13px]">
+                    <div className="flex items-center gap-2 font-bold text-zinc-800 dark:text-zinc-200">
+                      <div className="w-6 h-6 rounded-full bg-teal-50 dark:bg-teal-500/10 text-[#0f766e] dark:text-[#16A696] flex items-center justify-center text-[11px]">
+                        <User className="w-3.5 h-3.5" />
+                      </div>
+                      <span>{report.userName || "Anonymous User"}</span>
+                    </div>
+
+                    <span className="text-[12px] text-zinc-400 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" /> {formatDate(report.createdAt)}
+                    </span>
+                  </div>
+
+                  <div className="bg-white dark:bg-zinc-950 p-3 rounded-xl border border-zinc-200/70 dark:border-zinc-800/60 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                    <span className="font-semibold text-red-600 dark:text-red-400 block mb-1 text-[11px] uppercase tracking-wider">
+                      Report Reason:
+                    </span>
+                    {report.reason}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <Link
+                href={`/lessons/${selectedLessonGroup.lessonId}`}
+                target="_blank"
+                className="text-[13px] font-semibold text-[#0f766e] dark:text-[#16A696] hover:underline flex items-center gap-1"
+              >
+                <FileText className="w-4 h-4" /> Open Full Lesson
+              </Link>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <Button
+                  onClick={() => handleIgnoreReports(selectedLessonGroup.lessonId)}
+                  className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 font-semibold text-[13px] px-4 py-2 rounded-xl cursor-pointer"
+                >
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" /> Ignore All
+                </Button>
+                <Button
+                  onClick={() => handleDeleteLesson(selectedLessonGroup.lessonId)}
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold text-[13px] px-4 py-2 rounded-xl cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete Lesson
+                </Button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -1,44 +1,43 @@
-'use client'
+"use client";
 
-import { authClient } from '@/lib/auth-client'
-import { Avatar, Button } from '@heroui/react'
-import { 
-  Bookmark, 
-  GraduationCap, 
-  LayoutDashboard, 
-  LogOut, 
-  Moon, 
-  PlusIcon, 
-  Settings, 
+import { authClient } from "@/lib/auth-client";
+import { Avatar, Button } from "@heroui/react";
+import {
+  Bookmark,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  Moon,
+  PlusIcon,
+  Settings,
   Sun,
   BookOpen,
   Users,
-  Flag
-} from 'lucide-react'
-import { useTheme } from 'next-themes'
-import Image from 'next/image'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
-import toast from "react-hot-toast";
+  Flag,
+} from "lucide-react";
+import { useTheme } from "next-themes";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 
 const DashboardSidebar = () => {
   const pathname = usePathname();
   const [reportedCount, setReportedCount] = useState(0);
 
-  // All hooks must be called unconditionally at the top level
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
-  
-  const { data: session, isPending } = authClient.useSession();
+
+  const { data: session } = authClient.useSession();
   const user = session?.user;
 
   // Fetch the dynamic reported count on mount
   useEffect(() => {
     const fetchReportedCount = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+        const backendUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
         const res = await fetch(`${backendUrl}/api/admin/stats`);
         if (res.ok) {
           const data = await res.json();
@@ -52,25 +51,23 @@ const DashboardSidebar = () => {
     fetchReportedCount();
   }, []);
 
-  // Prevent hydration mismatch effect
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Helper to check active links
   const isActive = (path) => pathname === path;
-  
+
   const getUserInitial = (name) => {
-    return name ? name.charAt(0).toUpperCase() : 'U';
+    return name ? name.charAt(0).toUpperCase() : "U";
   };
 
-  const rolePath = user?.role === 'admin' ? 'admin' : 'user';
+  const rolePath = user?.role === "admin" ? "admin" : "user";
   const basePath = `/dashboard/${rolePath}`;
-  
+
   // Navigation Links mapping
   const navLinks = {
     overview: `${basePath}/overview`,
-    addLesson: `${basePath}/add-lesson`, 
+    addLesson: `${basePath}/add-lesson`,
     lessons: `${basePath}/lessons`,
     saved: `${basePath}/saved`,
     settings: `${basePath}/settings`,
@@ -84,7 +81,7 @@ const DashboardSidebar = () => {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          router.push('/signin');
+          router.push("/signin");
         },
       },
     });
@@ -106,29 +103,33 @@ const DashboardSidebar = () => {
         </Link>
       </div>
 
-      {/* User Profile Area */}
+      {/* User Profile Area (Clickable link to profile/settings) */}
       <div className="px-6 mb-6">
-        <div className="flex items-center gap-3">
-          <Avatar className="w-9 h-9 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-bold border border-zinc-300 dark:border-zinc-600">
-            <Avatar.Image src={user?.image || null} alt={user?.name || "Profile"} />
-            <Avatar.Fallback>
-              {getUserInitial(user?.name)}
-            </Avatar.Fallback>
+        <Link 
+          href={navLinks.settings}
+          className="flex items-center gap-3 p-2 -mx-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors group cursor-pointer"
+        >
+          <Avatar className="w-9 h-9 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-bold border border-zinc-300 dark:border-zinc-600 shrink-0">
+            <Avatar.Image
+              src={user?.image || null}
+              alt={user?.name || "Profile"}
+            />
+            <Avatar.Fallback>{getUserInitial(user?.name)}</Avatar.Fallback>
           </Avatar>
-          <div className="flex flex-col">
-            <span className="text-[14px] font-bold text-zinc-900 dark:text-white leading-tight">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[14px] font-bold text-zinc-900 dark:text-white leading-tight truncate group-hover:text-[#16A696] transition-colors">
               {user?.name || "User Name"}
             </span>
             <span className="text-[12px] font-medium text-zinc-500 capitalize">
               {user?.role || "User Role"}
             </span>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Main Navigation */}
       <nav className="flex-1 px-4 flex flex-col gap-1 overflow-y-auto no-scrollbar">
-        {user?.role === 'admin' ? (
+        {user?.role === "admin" ? (
           /* === ADMIN NAVIGATION === */
           <>
             <Link
@@ -179,16 +180,30 @@ const DashboardSidebar = () => {
                 <Flag className="w-5 h-5" />
                 Reported Content
               </div>
-              {/* Notification Badge rendered conditionally */}
               {reportedCount > 0 && (
-                <div className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[20px] h-[20px] ${
-                  isActive(navLinks.reportedContent) 
-                    ? "bg-white text-[#16A696]" 
-                    : "bg-[#b91c1c] text-white"
-                }`}>
+                <div
+                  className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[20px] h-[20px] ${
+                    isActive(navLinks.reportedContent)
+                      ? "bg-white text-[#16A696]"
+                      : "bg-[#b91c1c] text-white"
+                  }`}
+                >
                   {reportedCount}
                 </div>
               )}
+            </Link>
+
+            {/* Admin Profile & Settings Link */}
+            <Link
+              href={navLinks.settings}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-semibold transition-colors ${
+                isActive(navLinks.settings)
+                  ? "bg-[#16A696] text-white shadow-sm"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              }`}
+            >
+              <Settings className="w-5 h-5" />
+              Settings & Profile
             </Link>
           </>
         ) : (
@@ -217,7 +232,7 @@ const DashboardSidebar = () => {
               <PlusIcon className="w-5 h-5" />
               Add Lessons
             </Link>
-            
+
             <Link
               href={navLinks.lessons}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-semibold transition-colors ${
@@ -258,17 +273,23 @@ const DashboardSidebar = () => {
       </nav>
 
       {/* Upgrade Section - ONLY VISIBLE FOR NON-ADMINS */}
-      {user?.role !== 'admin' && (
-        <div className="px-4">
-          <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
-          <Button className="w-full bg-[#0d6e63] hover:bg-[#0a574e] text-white font-semibold text-[14px] py-6 rounded-xl transition-all shadow-sm">
-            Upgrade to Pro
-          </Button>
-          <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
-        </div>
-      )}
-      
-      {user?.role === 'admin' && (
+      {user?.role !== "admin" &&
+        user?.plan !== "premium" &&
+        !user?.isPremium && (
+          <div className="px-4">
+            <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
+            <Button
+              as={Link}
+              href="/pricing"
+              className="w-full bg-[#0d6e63] hover:bg-[#0a574e] text-white font-semibold text-[14px] py-6 rounded-xl transition-all shadow-sm"
+            >
+              Upgrade to Pro
+            </Button>
+            <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
+          </div>
+        )}
+
+      {user?.role === "admin" && (
         <div className="px-4">
           <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
         </div>
@@ -288,8 +309,8 @@ const DashboardSidebar = () => {
           Toggle Theme
         </button>
 
-        <button 
-          onClick={handleSignOut} 
+        <button
+          onClick={handleSignOut}
           className="cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-500 transition-colors w-full text-left"
         >
           <LogOut className="w-5 h-5" />
@@ -297,7 +318,7 @@ const DashboardSidebar = () => {
         </button>
       </div>
     </aside>
-  )
-}
+  );
+};
 
-export default DashboardSidebar
+export default DashboardSidebar;
