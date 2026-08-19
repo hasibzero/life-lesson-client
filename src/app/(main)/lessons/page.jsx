@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth-client";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, Button, Chip, Spinner } from "@heroui/react";
 import toast from "react-hot-toast";
+import { usePathname, useSearchParams } from "next/navigation";
 
 // Standard SVG for the Lock Icon used in the Premium overlay
 const LockIcon = () => (
@@ -33,23 +34,74 @@ export default function BrowseLessonsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Filter States
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedTone, setSelectedTone] = useState("All");
+const searchParams = useSearchParams();
+  const pathname = usePathname();
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const lessonsPerPage = 8;
+  // Initialize state directly from URL query params (if any)
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
+  const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") || "");
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "All");
+  const [selectedTone, setSelectedTone] = useState(searchParams.get("emotionalTone") || "All");
+  const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1", 10));
+  const [totalPages, setTotalPages] = useState(1);
+  const limitPerPage = 8;
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+    if (selectedCategory !== "All") params.set("category", selectedCategory);
+    if (selectedTone !== "All") params.set("emotionalTone", selectedTone);
+    if (currentPage > 1) params.set("page", currentPage.toString());
+
+    const queryString = params.toString();
+    const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+
+    window.history.replaceState(null, "", newUrl);
+  }, [debouncedSearch, selectedCategory, selectedTone, currentPage, pathname]);
 
   useEffect(() => {
     const fetchLessons = async () => {
+      setIsLoading(true);
       try {
-        const response = await fetch(`${backendUrl}/api/lessons`);
+        const queryParams = new URLSearchParams({
+          search: debouncedSearch.trim(),
+          category: selectedCategory,
+          emotionalTone: selectedTone,
+          visibility: "Public",
+          sortBy: "newest",
+          page: currentPage.toString(),
+          limit: limitPerPage.toString(),
+        });
+
+        const response = await fetch(
+          `${backendUrl}/api/lessons?${queryParams.toString()}`,
+        );
         if (response.ok) {
-          const data = await response.json();
-          setLessons(data);
+          const result = await response.json();
+
+          // Handles both paginated response object and flat array
+          if (result && Array.isArray(result.data)) {
+            setLessons(result.data);
+            setTotalPages(result.totalPages || 1);
+          } else if (Array.isArray(result)) {
+            setLessons(result);
+            setTotalPages(Math.ceil(result.length / limitPerPage) || 1);
+          } else {
+            setLessons([]);
+            setTotalPages(1);
+          }
         } else {
           toast.error("Failed to fetch lessons.");
         }
@@ -62,50 +114,54 @@ export default function BrowseLessonsPage() {
     };
 
     fetchLessons();
-  }, [backendUrl]);
+  }, [
+    backendUrl,
+    debouncedSearch,
+    selectedCategory,
+    selectedTone,
+    currentPage,
+  ]);
 
-  // Format MongoDB date string to "Oct 12, 2023"
   const formatDate = (dateString) => {
     if (!dateString) return "";
     const options = { year: "numeric", month: "short", day: "2-digit" };
     return new Date(dateString).toLocaleDateString("en-US", options);
   };
 
-  // Only include approved/reviewed lessons
-  const approvedLessons = lessons.filter((lesson) => lesson?.isReviewed === true);
+  // // Only include approved/reviewed lessons
+  // const approvedLessons = lessons.filter((lesson) => lesson?.isReviewed === true);
 
-  // Filter Logic
-  const filteredLessons = approvedLessons.filter((lesson) => {
-    const matchesSearch =
-      lesson.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lesson.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lesson.creatorName?.toLowerCase().includes(searchQuery.toLowerCase());
+  // // Filter Logic
+  // const filteredLessons = approvedLessons.filter((lesson) => {
+  //   const matchesSearch =
+  //     lesson.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //     lesson.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //     lesson.creatorName?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesCategory =
-      selectedCategory === "All" || lesson.category === selectedCategory;
-    const matchesTone =
-      selectedTone === "All" || lesson.emotionalTone === selectedTone;
+  //   const matchesCategory =
+  //     selectedCategory === "All" || lesson.category === selectedCategory;
+  //   const matchesTone =
+  //     selectedTone === "All" || lesson.emotionalTone === selectedTone;
 
-    return matchesSearch && matchesCategory && matchesTone;
-  });
+  //   return matchesSearch && matchesCategory && matchesTone;
+  // });
 
-  // Pagination Logic
-  const totalPages = Math.ceil(filteredLessons.length / lessonsPerPage) || 1;
-  const indexOfLastLesson = currentPage * lessonsPerPage;
-  const indexOfFirstLesson = indexOfLastLesson - lessonsPerPage;
-  const currentLessons = filteredLessons.slice(indexOfFirstLesson, indexOfLastLesson);
+  // // Pagination Logic
+  // const totalPages = Math.ceil(filteredLessons.length / lessonsPerPage) || 1;
+  // const indexOfLastLesson = currentPage * lessonsPerPage;
+  // const indexOfFirstLesson = indexOfLastLesson - lessonsPerPage;
+  // const currentLessons = filteredLessons.slice(indexOfFirstLesson, indexOfLastLesson);
 
-  if (isLoading) {
-    return (
-      <div className="w-full min-h-screen flex items-center justify-center dark:bg-[#09090b]">
-        <Spinner size="lg" color="current" className="text-[#149788]" />
-      </div>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <div className="w-full min-h-screen flex items-center justify-center dark:bg-[#09090b]">
+  //       <Spinner size="lg" color="current" className="text-[#149788]" />
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="w-full min-h-screen text-black dark:text-white py-12 px-4 sm:px-8 lg:px-16 font-sans">
-      
       {/* Header Section */}
       <div className="max-w-7xl mx-auto mb-10">
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2 text-black dark:text-white">
@@ -118,7 +174,6 @@ export default function BrowseLessonsPage() {
 
       {/* Search & Filter Bar */}
       <div className="max-w-7xl mx-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 flex flex-col md:flex-row items-center gap-4 mb-12 shadow-sm">
-        
         {/* Search Input */}
         <div className="relative flex-1 w-full flex items-center">
           <Search className="absolute left-4 w-4 h-4 text-zinc-400" />
@@ -173,7 +228,7 @@ export default function BrowseLessonsPage() {
 
       {/* Lessons Grid matching LessonsCard structure */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        {currentLessons.map((lesson) => {
+        {lessons.map((lesson) => {
           const isLocked = lesson?.accessLevel === "Premium" && !isPremiumUser;
 
           return (
@@ -266,26 +321,42 @@ export default function BrowseLessonsPage() {
               </div>
 
               {/* Card Footer */}
+              {/* Card Footer */}
               <div className="px-5 pb-5 pt-3">
-                
-                  <Button
-                    radius="sm"
-                    variant="bordered"
-                    className="w-full font-semibold border-2 transition-colors hover:bg-[#149788] hover:text-white border-[#149788] text-[#149788] cursor-pointer"
-                  >
-                   <Link href={`/lessons/${lesson?._id}`}> See Details</Link>
-                  </Button>
-                
+                <Link
+                  href={`/lessons/${lesson?._id}`}
+                  className="w-full py-2 text-center font-semibold rounded-sm border-2 border-[#149788] text-[#149788] hover:bg-[#149788] hover:text-white transition-colors block text-sm cursor-pointer"
+                >
+                  See Details
+                </Link>
               </div>
             </Card>
           );
         })}
 
-        {filteredLessons.length === 0 && (
-          <div className="col-span-full py-20 text-center text-zinc-500">
+        {/* Lessons Grid Container */}
+      <div className="max-w-7xl mx-auto mb-12">
+        {isLoading ? (
+          <div className="w-full min-h-[350px] flex items-center justify-center">
+            <Spinner size="lg" color="current" className="text-[#149788]" />
+          </div>
+        ) : lessons.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {lessons.map((lesson) => (
+              <Card
+                key={lesson?._id}
+                className="relative h-full w-full shadow-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between"
+              >
+                {/* ... Card Content ... */}
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="py-20 text-center text-zinc-500">
             <p className="text-lg font-medium">No lessons found matching your filters.</p>
           </div>
         )}
+      </div>
       </div>
 
       {/* Pagination Controls */}
@@ -314,7 +385,9 @@ export default function BrowseLessonsPage() {
           ))}
 
           <button
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+            }
             disabled={currentPage === totalPages}
             className="w-10 h-10 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
@@ -322,7 +395,6 @@ export default function BrowseLessonsPage() {
           </button>
         </div>
       )}
-
     </div>
   );
 }
