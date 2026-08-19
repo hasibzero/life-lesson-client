@@ -267,15 +267,15 @@ export default function BrowseLessonsPage() {
 
               {/* Card Footer */}
               <div className="px-5 pb-5 pt-3">
-                <Link href={`/lessons/${lesson?._id}`} className="w-full">
+                
                   <Button
                     radius="sm"
                     variant="bordered"
                     className="w-full font-semibold border-2 transition-colors hover:bg-[#149788] hover:text-white border-[#149788] text-[#149788] cursor-pointer"
                   >
-                    See Details
+                   <Link href={`/lessons/${lesson?._id}`}> See Details</Link>
                   </Button>
-                </Link>
+                
               </div>
             </Card>
           );

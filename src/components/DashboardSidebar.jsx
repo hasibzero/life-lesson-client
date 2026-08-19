@@ -1,7 +1,12 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { authClient } from "@/lib/auth-client";
-import { Avatar, Button } from "@heroui/react";
+import { Avatar } from "@heroui/react";
 import {
   Bookmark,
   GraduationCap,
@@ -15,24 +20,24 @@ import {
   Users,
   Flag,
 } from "lucide-react";
-import { useTheme } from "next-themes";
-import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import { SidebarSkeleton } from "./SidebarSkeleton";
 
 const DashboardSidebar = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const { theme, setTheme } = useTheme();
+
+  const [mounted, setMounted] = useState(false);
   const [reportedCount, setReportedCount] = useState(0);
 
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const router = useRouter();
-
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
 
-  // Fetch the dynamic reported count on mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Fetch dynamic report count for badge
   useEffect(() => {
     const fetchReportedCount = async () => {
       try {
@@ -51,9 +56,10 @@ const DashboardSidebar = () => {
     fetchReportedCount();
   }, []);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Render standalone skeleton during loading / hydration
+  if (!mounted || isPending) {
+    return <SidebarSkeleton />;
+  }
 
   const isActive = (path) => pathname === path;
 
@@ -64,14 +70,12 @@ const DashboardSidebar = () => {
   const rolePath = user?.role === "admin" ? "admin" : "user";
   const basePath = `/dashboard/${rolePath}`;
 
-  // Navigation Links mapping
   const navLinks = {
     overview: `${basePath}/overview`,
     addLesson: `${basePath}/add-lesson`,
     lessons: `${basePath}/lessons`,
     saved: `${basePath}/saved`,
     settings: `${basePath}/settings`,
-    // Admin specific links
     manageLessons: `${basePath}/manage-lessons`,
     manageUsers: `${basePath}/manage-users`,
     reportedContent: `${basePath}/reported-content`,
@@ -88,7 +92,7 @@ const DashboardSidebar = () => {
   };
 
   return (
-    <aside className="w-[280px] bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col h-full flex-shrink-0 z-20">
+    <aside className="w-[280px] bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col h-full flex-shrink-0 z-20 font-sans">
       {/* Logo */}
       <div className="px-8 pt-8 pb-6">
         <Link href="/">
@@ -103,7 +107,7 @@ const DashboardSidebar = () => {
         </Link>
       </div>
 
-      {/* User Profile Area (Clickable link to profile/settings) */}
+      {/* User Profile Area */}
       <div className="px-6 mb-6">
         <Link 
           href={navLinks.settings}
@@ -193,7 +197,6 @@ const DashboardSidebar = () => {
               )}
             </Link>
 
-            {/* Admin Profile & Settings Link */}
             <Link
               href={navLinks.settings}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-semibold transition-colors ${
@@ -272,19 +275,18 @@ const DashboardSidebar = () => {
         )}
       </nav>
 
-      {/* Upgrade Section - ONLY VISIBLE FOR NON-ADMINS */}
+      {/* Upgrade Section (Non-admins only) */}
       {user?.role !== "admin" &&
         user?.plan !== "premium" &&
         !user?.isPremium && (
           <div className="px-4">
             <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
-            <Button
-              as={Link}
+            <Link
               href="/pricing"
-              className="w-full bg-[#0d6e63] hover:bg-[#0a574e] text-white font-semibold text-[14px] py-6 rounded-xl transition-all shadow-sm"
+              className="w-full bg-[#0d6e63] hover:bg-[#0a574e] text-white font-semibold text-[14px] py-3 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer"
             >
               Upgrade to Pro
-            </Button>
+            </Link>
             <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
           </div>
         )}
@@ -301,7 +303,7 @@ const DashboardSidebar = () => {
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors w-full text-left"
         >
-          {mounted && theme === "dark" ? (
+          {theme === "dark" ? (
             <Sun className="w-5 h-5" />
           ) : (
             <Moon className="w-5 h-5" />

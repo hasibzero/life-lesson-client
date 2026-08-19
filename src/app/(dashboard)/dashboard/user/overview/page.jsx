@@ -53,7 +53,7 @@ export default function OverviewPage() {
         // Fetch user's created lessons and saved lessons in parallel
         const [lessonsRes, savedRes] = await Promise.all([
           fetch(`${backendUrl}/api/my-lessons/${user.id}`),
-          fetch(`${backendUrl}/api/saved-lessons/${user.id}`)
+          fetch(`${backendUrl}/api/saved-lessons/${user.id}`),
         ]);
 
         const lessonsData = lessonsRes.ok ? await lessonsRes.json() : [];
@@ -65,7 +65,7 @@ export default function OverviewPage() {
           mySubmissions: lessonsData.length || 0,
           totalSavesReceived: lessonsData.reduce(
             (acc, curr) => acc + (curr.savedBy?.length || 0),
-            0
+            0,
           ),
         });
 
@@ -92,7 +92,7 @@ export default function OverviewPage() {
           dayNames.map((day, idx) => ({
             day,
             count: activityCounts[idx],
-          }))
+          })),
         );
       } catch (error) {
         console.error("Error fetching overview stats:", error);
@@ -111,7 +111,7 @@ export default function OverviewPage() {
   const maxFreeSaves = 5;
   const submissionsPercent = Math.min(
     (stats.mySubmissions / maxFreeSubmissions) * 100,
-    100
+    100,
   );
   const savesPercent = Math.min((stats.savedLessons / maxFreeSaves) * 100, 100);
 
@@ -134,16 +134,18 @@ export default function OverviewPage() {
             Welcome back, {firstName}.
           </h1>
           <p className="text-[15px] text-zinc-600 dark:text-zinc-400 mt-1">
-            Here is an overview of your lessons, contributions, and community impact.
+            Here is an overview of your lessons, contributions, and community
+            impact.
           </p>
         </div>
-        <Button
-          as={Link}
+
+        <Link
           href="/dashboard/user/add-lesson"
-          className="bg-[#147062] hover:bg-[#0f594e] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm flex items-center gap-2 w-fit cursor-pointer"
+          className="bg-[#147062] hover:bg-[#0f594e] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm inline-flex items-center gap-2 w-fit cursor-pointer text-[14px]"
         >
-          <PlusCircle className="w-4 h-4" /> Create Lesson
-        </Button>
+          <PlusCircle className="w-4 h-4" />
+          <span>Create Lesson</span>
+        </Link>
       </div>
 
       {/* === Stats Cards Grid === */}
@@ -244,7 +246,7 @@ export default function OverviewPage() {
             {weeklyActivity.map((item) => {
               const barHeightPercent = Math.max(
                 (item.count / maxActivity) * 100,
-                10
+                10,
               );
               return (
                 <div
@@ -348,85 +350,87 @@ export default function OverviewPage() {
 
       {/* === Recently Added Lessons Section === */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-[#16A696] flex items-center justify-center">
-              <Clock className="w-4 h-4" />
-            </div>
-            <h3 className="text-lg font-bold text-[#1a202c] dark:text-white">
-              Recently Added Lessons
-            </h3>
-          </div>
-          <Link
-            href="/dashboard/user/lessons"
-            className="text-[13px] font-semibold text-[#16A696] hover:underline flex items-center gap-1"
-          >
-            View all ({stats.mySubmissions}){" "}
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        {recentLessons.length > 0 ? (
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {recentLessons.map((lesson) => (
-              <div
-                key={lesson._id}
-                className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 rounded-xl px-2 transition-colors"
-              >
-                <div className="flex flex-col">
-                  <span className="text-[15px] font-bold text-zinc-900 dark:text-white">
-                    {lesson.title}
-                  </span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[12px] font-medium text-zinc-500">
-                      {formatDate(lesson.createdAt)}
-                    </span>
-                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                    <span className="text-[12px] font-medium text-zinc-500">
-                      {lesson.category || "General"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                      lesson.visibility === "Draft"
-                        ? "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
-                        : "bg-teal-100 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400"
-                    }`}
-                  >
-                    {lesson.visibility || "Public"}
-                  </span>
-                  <Button
-                    as={Link}
-                    href={`/lessons/${lesson._id}`}
-                    size="sm"
-                    variant="bordered"
-                    className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer"
-                  >
-                    View
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="py-8 text-center text-zinc-500">
-            <p className="text-[14px]">
-              You haven't published any lessons yet.
-            </p>
-            <Button
-              as={Link}
-              href="/dashboard/user/add-lesson"
-              size="sm"
-              className="mt-3 bg-[#16A696] text-white font-semibold"
-            >
-              Create your first lesson
-            </Button>
-          </div>
-        )}
+  {/* Card Header */}
+  <div className="flex items-center justify-between mb-6">
+    <div className="flex items-center gap-2.5">
+      <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-[#16A696] flex items-center justify-center">
+        <Clock className="w-4 h-4" />
       </div>
+      <h3 className="text-lg font-bold text-[#1a202c] dark:text-white">
+        Recently Added Lessons
+      </h3>
+    </div>
+    <Link
+      href="/dashboard/user/lessons"
+      className="text-[13px] font-semibold text-[#16A696] hover:underline flex items-center gap-1"
+    >
+      View all ({stats?.mySubmissions || 0}){" "}
+      <ArrowRight className="w-3.5 h-3.5" />
+    </Link>
+  </div>
+
+  {/* Card Body with Loader / Content / Empty States */}
+  {isLoading ? (
+    <div className="w-full flex items-center justify-center">
+      <Spinner size="lg" color="current" className="text-[#0f766e]" />
+    </div>
+  ) : recentLessons.length > 0 ? (
+    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+      {recentLessons.map((lesson) => (
+        <div
+          key={lesson._id}
+          className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 rounded-xl px-2 transition-colors"
+        >
+          <div className="flex flex-col">
+            <span className="text-[15px] font-bold text-zinc-900 dark:text-white">
+              {lesson.title}
+            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[12px] font-medium text-zinc-500">
+                {formatDate(lesson.createdAt)}
+              </span>
+              <span className="text-zinc-300 dark:text-zinc-700">•</span>
+              <span className="text-[12px] font-medium text-zinc-500">
+                {lesson.category || "General"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                lesson.visibility === "Draft"
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                  : "bg-teal-100 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400"
+              }`}
+            >
+              {lesson.visibility || "Public"}
+            </span>
+
+            <Link
+              href={`/lessons/${lesson._id}`}
+              className="px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              View
+            </Link>
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="py-8 text-center text-zinc-500">
+      <p className="text-[14px]">
+        You haven&apos;t published any lessons yet.
+      </p>
+      <Link
+        href="/dashboard/user/add-lesson"
+        className="inline-block mt-3 px-4 py-2 bg-[#16A696] hover:bg-[#0d6e63] text-white font-semibold text-xs rounded-xl transition-colors"
+      >
+        Create your first lesson
+      </Link>
+    </div>
+  )}
+</div>
 
       {/* === Upgrade / Account Tier Section === */}
       <div
@@ -499,12 +503,8 @@ export default function OverviewPage() {
 
         {!isPremiumUser && (
           <div className="flex items-center">
-            <Button
-              as={Link}
-              href="/pricing"
-              className="bg-[#147062] hover:bg-[#10594e] text-white font-semibold px-6 py-5 rounded-xl transition-colors cursor-pointer"
-            >
-              Upgrade to Pro
+            <Button className="bg-[#147062] hover:bg-[#10594e] text-white font-semibold px-6 py-5 rounded-xl transition-colors cursor-pointer">
+              <Link href="/pricing">Upgrade to Pro</Link>
             </Button>
           </div>
         )}

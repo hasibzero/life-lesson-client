@@ -83,7 +83,7 @@ export default function Hero() {
                 {/* Buttons */}
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                   <Link 
-                    href="/start" 
+                    href="/lessons" 
                     className="w-full sm:w-auto px-8 py-3.5 text-base font-semibold text-white rounded-xl transition-all hover:brightness-110 shadow-lg shadow-[#149788]/20"
                     style={{ backgroundColor: '#149788' }}
                   >

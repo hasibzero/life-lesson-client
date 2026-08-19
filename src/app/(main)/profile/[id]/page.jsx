@@ -1,21 +1,21 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { 
-  BookOpen, 
-  ArrowLeft, 
-  Clock, 
-  Lock, 
+import React, { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  BookOpen,
+  ArrowLeft,
+  Clock,
+  Lock,
   ArrowRight,
   Heart,
   Bookmark,
-  ShieldCheck
-} from 'lucide-react';
-import { Spinner, Button } from '@heroui/react';
-import { authClient } from '@/lib/auth-client';
-import toast from 'react-hot-toast';
+  ShieldCheck,
+} from "lucide-react";
+import { Spinner, Button } from "@heroui/react";
+import { authClient } from "@/lib/auth-client";
+import toast from "react-hot-toast";
 
 const LockIcon = () => (
   <svg
@@ -40,17 +40,21 @@ export default function AuthorProfilePage() {
 
   const { data: session } = authClient.useSession();
   const currentUser = session?.user;
-  const isPremiumUser = currentUser?.role === 'admin' || currentUser?.plan === 'premium' || currentUser?.isPremium;
+  const isPremiumUser =
+    currentUser?.role === "admin" ||
+    currentUser?.plan === "premium" ||
+    currentUser?.isPremium;
 
   const [author, setAuthor] = useState(null);
   const [authorLessons, setAuthorLessons] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   useEffect(() => {
     const fetchAuthorProfile = async () => {
-      if (!id || id === 'undefined') {
+      if (!id || id === "undefined") {
         setIsLoading(false);
         return;
       }
@@ -66,11 +70,13 @@ export default function AuthorProfilePage() {
           const legacyRes = await fetch(`${backendUrl}/api/my-lessons/${id}`);
           if (legacyRes.ok) {
             const lessonsData = await legacyRes.json();
-            const publicLessons = lessonsData.filter((l) => l.visibility === 'Public');
+            const publicLessons = lessonsData.filter(
+              (l) => l.visibility === "Public",
+            );
             setAuthorLessons(publicLessons);
             setAuthor({
-              name: publicLessons[0]?.creatorName || 'Anonymous Creator',
-              image: publicLessons[0]?.creatorAvatar || '',
+              name: publicLessons[0]?.creatorName || "Anonymous Creator",
+              image: publicLessons[0]?.creatorAvatar || "",
               id: id,
             });
           } else {
@@ -105,16 +111,17 @@ export default function AuthorProfilePage() {
     );
   }
 
-  const authorName = author?.name || 'Author';
-  const authorAvatar = author?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=0f766e&color=fff`;
+  const authorName = author?.name || "Author";
+  const authorAvatar =
+    author?.image ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=0f766e&color=fff`;
 
   return (
     <div className="w-full min-h-screen bg-[#f9fafb] dark:bg-[#0c0c0e] py-12 px-4 sm:px-8 lg:px-16 font-sans">
       <div className="max-w-7xl mx-auto flex flex-col gap-10">
-        
         {/* Back Button */}
-        <button 
-          onClick={() => router.back()} 
+        <button
+          onClick={() => router.back()}
           className="flex items-center gap-2 text-[14px] font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer w-fit"
         >
           <ArrowLeft className="w-4 h-4" /> Go Back
@@ -123,9 +130,9 @@ export default function AuthorProfilePage() {
         {/* Author Header Banner */}
         <div className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-sm flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
-            <img 
-              src={authorAvatar} 
-              alt={authorName} 
+            <img
+              src={authorAvatar}
+              alt={authorName}
               className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-zinc-800 shadow-md"
             />
             <div className="flex flex-col gap-1">
@@ -133,20 +140,23 @@ export default function AuthorProfilePage() {
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white">
                   {authorName}
                 </h1>
-                {author?.role === 'admin' && (
+                {author?.role === "admin" && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-500/20">
                     <ShieldCheck className="w-3.5 h-3.5" /> Verified Admin
                   </span>
                 )}
               </div>
-              
+
               <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
                 Platform Educator & Creator
               </p>
 
               <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
                 <span className="inline-flex items-center gap-1 text-[12px] font-bold px-3 py-1 rounded-full bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400 border border-teal-200/60 dark:border-teal-500/20">
-                  <BookOpen className="w-3.5 h-3.5" /> {authorLessons.length} {authorLessons.length === 1 ? 'Lesson Published' : 'Lessons Published'}
+                  <BookOpen className="w-3.5 h-3.5" /> {authorLessons.length}{" "}
+                  {authorLessons.length === 1
+                    ? "Lesson Published"
+                    : "Lessons Published"}
                 </span>
               </div>
             </div>
@@ -167,7 +177,8 @@ export default function AuthorProfilePage() {
           {authorLessons.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {authorLessons.map((lesson) => {
-                const isLocked = lesson.accessLevel === 'Premium' && !isPremiumUser;
+                const isLocked =
+                  lesson.accessLevel === "Premium" && !isPremiumUser;
 
                 return (
                   <div
@@ -188,7 +199,10 @@ export default function AuthorProfilePage() {
                             ? "Upgrade to view this content"
                             : "Sign in & upgrade to view"}
                         </p>
-                        <Link href={currentUser ? "/pricing" : "/signin"} className="w-full">
+                        <Link
+                          href={currentUser ? "/pricing" : "/signin"}
+                          className="w-full"
+                        >
                           <Button
                             size="sm"
                             radius="sm"
@@ -217,7 +231,7 @@ export default function AuthorProfilePage() {
                           </div>
                         )}
 
-                        {lesson.accessLevel === 'Premium' && (
+                        {lesson.accessLevel === "Premium" && (
                           <div className="absolute top-3 left-3 bg-zinc-900/80 backdrop-blur-md text-amber-400 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-sm">
                             <Lock className="w-3 h-3" /> Premium
                           </div>
@@ -231,7 +245,8 @@ export default function AuthorProfilePage() {
                             {lesson.category || "General"}
                           </span>
                           <span className="text-[12px] text-zinc-400 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" /> {formatDate(lesson.createdAt)}
+                            <Clock className="w-3.5 h-3.5" />{" "}
+                            {formatDate(lesson.createdAt)}
                           </span>
                         </div>
 
@@ -249,20 +264,20 @@ export default function AuthorProfilePage() {
                     <div className="px-5 py-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
                       <div className="flex items-center gap-3 text-[12px] font-semibold text-zinc-400">
                         <span className="flex items-center gap-1">
-                          <Heart className="w-3.5 h-3.5 text-red-500" /> {lesson.likesCount || 0}
+                          <Heart className="w-3.5 h-3.5 text-red-500" />{" "}
+                          {lesson.likesCount || 0}
                         </span>
                         <span className="flex items-center gap-1">
-                          <Bookmark className="w-3.5 h-3.5 text-[#0f766e]" /> {lesson.savedBy?.length || 0}
+                          <Bookmark className="w-3.5 h-3.5 text-[#0f766e]" />{" "}
+                          {lesson.savedBy?.length || 0}
                         </span>
                       </div>
 
-                      <Link href={`/lessons/${lesson._id}`}>
-                        <Button
-                          size="sm"
-                          className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold rounded-xl text-[12px] flex items-center gap-1 cursor-pointer"
-                        >
-                          Read <ArrowRight className="w-3.5 h-3.5" />
-                        </Button>
+                      <Link
+                        href={`/lessons/${lesson._id}`}
+                        className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold rounded-xl text-[12px] px-3.5 py-1.5 flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        Read <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   </div>
@@ -276,12 +291,12 @@ export default function AuthorProfilePage() {
                 No public lessons yet
               </h3>
               <p className="text-[14px] text-zinc-500 max-w-sm mt-1">
-                {authorName} has not published any public modules to the platform yet.
+                {authorName} has not published any public modules to the
+                platform yet.
               </p>
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

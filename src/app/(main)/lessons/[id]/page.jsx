@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
-import { authClient } from '@/lib/auth-client';
-import { 
+import React, { useState, useEffect, useMemo } from "react";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
+import {
   ArrowLeft,
   Bookmark,
   Calendar,
@@ -19,10 +19,10 @@ import {
   Send,
   X,
   Lock,
-  Check
-} from 'lucide-react';
-import { Spinner, Button, Chip } from '@heroui/react';
-import toast from 'react-hot-toast';
+  Check,
+} from "lucide-react";
+import { Spinner, Button, Chip } from "@heroui/react";
+import toast from "react-hot-toast";
 
 const timeAgo = (date) => {
   const seconds = Math.floor((new Date() - new Date(date)) / 1000);
@@ -40,9 +40,9 @@ const timeAgo = (date) => {
 };
 
 const formatNumber = (num) => {
-  if (!num) return '0';
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  if (!num) return "0";
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+  if (num >= 1000) return (num / 1000).toFixed(1) + "K";
   return num.toString();
 };
 
@@ -54,7 +54,8 @@ export default function LessonDetail() {
   const { data: session } = authClient.useSession();
   const user = session?.user;
 
-  const isPremiumUser = user?.role === 'admin' || user?.plan === 'premium' || user?.isPremium;
+  const isPremiumUser =
+    user?.role === "admin" || user?.plan === "premium" || user?.isPremium;
 
   const [lesson, setLesson] = useState(null);
   const [authorStats, setAuthorStats] = useState({ totalLessons: 0 });
@@ -82,12 +83,13 @@ export default function LessonDetail() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : "U";
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   useEffect(() => {
     const fetchLessonAndData = async () => {
       if (!id) return;
-      
+
       try {
         const lessonRes = await fetch(`${backendUrl}/api/lessons/${id}`);
         if (lessonRes.ok) {
@@ -95,17 +97,22 @@ export default function LessonDetail() {
           setLesson(lessonData);
           setLikesCount(lessonData.likesCount || lessonData.likes?.length || 0);
           setBookmarksCount(lessonData.savedBy?.length || 0);
-          setViewsCount(lessonData.views || Math.floor(Math.random() * 4500) + 520);
+          setViewsCount(
+            lessonData.views || Math.floor(Math.random() * 4500) + 520,
+          );
 
           if (user?.id) {
             if (lessonData.likes?.includes(user.id)) setIsLiked(true);
             if (lessonData.savedBy?.includes(user.id)) setIsBookmarked(true);
           }
 
-          const resolvedCreatorId = lessonData.creatorId || lessonData.userId || lessonData.authorId;
+          const resolvedCreatorId =
+            lessonData.creatorId || lessonData.userId || lessonData.authorId;
 
           if (resolvedCreatorId) {
-            const authorRes = await fetch(`${backendUrl}/api/my-lessons/${resolvedCreatorId}`);
+            const authorRes = await fetch(
+              `${backendUrl}/api/my-lessons/${resolvedCreatorId}`,
+            );
             if (authorRes.ok) {
               const authorLessons = await authorRes.json();
               setAuthorStats({ totalLessons: authorLessons.length || 1 });
@@ -134,11 +141,11 @@ export default function LessonDetail() {
   }, [id, backendUrl, user?.id]);
 
   const authorId = lesson?.creatorId || lesson?.userId || lesson?.authorId;
-  const authorProfileHref = authorId 
-    ? `/profile/${authorId}` 
-    : `/lessons?search=${encodeURIComponent(lesson?.creatorName || '')}`;
+  const authorProfileHref = authorId
+    ? `/profile/${authorId}`
+    : `/lessons?search=${encodeURIComponent(lesson?.creatorName || "")}`;
 
-  const isLocked = lesson?.accessLevel === 'Premium' && !isPremiumUser;
+  const isLocked = lesson?.accessLevel === "Premium" && !isPremiumUser;
 
   const readingTimeMinutes = useMemo(() => {
     if (!lesson?.description) return 1;
@@ -162,13 +169,17 @@ export default function LessonDetail() {
     const previousLikesCount = likesCount;
 
     setIsLiked(!previousIsLiked);
-    setLikesCount(previousIsLiked ? Math.max(0, previousLikesCount - 1) : previousLikesCount + 1);
+    setLikesCount(
+      previousIsLiked
+        ? Math.max(0, previousLikesCount - 1)
+        : previousLikesCount + 1,
+    );
 
     try {
       const response = await fetch(`${backendUrl}/api/lessons/${id}/like`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
       });
 
       if (response.ok) {
@@ -203,19 +214,28 @@ export default function LessonDetail() {
     const previousBookmarksCount = bookmarksCount;
 
     setIsBookmarked(!previousIsBookmarked);
-    setBookmarksCount(previousIsBookmarked ? Math.max(0, previousBookmarksCount - 1) : previousBookmarksCount + 1);
+    setBookmarksCount(
+      previousIsBookmarked
+        ? Math.max(0, previousBookmarksCount - 1)
+        : previousBookmarksCount + 1,
+    );
 
     try {
       const response = await fetch(`${backendUrl}/api/lessons/${id}/bookmark`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
       });
 
       if (response.ok) {
         const data = await response.json();
         setIsBookmarked(data.isBookmarked);
-        toast.success(data.message || (data.isBookmarked ? "Saved to favorites!" : "Removed from favorites."));
+        toast.success(
+          data.message ||
+            (data.isBookmarked
+              ? "Saved to favorites!"
+              : "Removed from favorites."),
+        );
       } else {
         setIsBookmarked(previousIsBookmarked);
         setBookmarksCount(previousBookmarksCount);
@@ -238,28 +258,34 @@ export default function LessonDetail() {
     setIsSubmittingReport(true);
     try {
       const response = await fetch(`${backendUrl}/api/lessons/${id}/report`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           lessonId: id,
           reporterUserId: user.id,
           reportedUserEmail: user.email,
           reason: reportReason,
           details: reportDetails,
-          createdAt: new Date()
-        })
+          createdAt: new Date().toISOString(),
+        }),
       });
 
-      if (response.ok) {
-        toast.success("Report submitted. Our moderation team will inspect this lesson.");
+      const data = await response.json();
+
+      if (response.ok && data.success !== false) {
+        toast.success(
+          data.message ||
+            "Report submitted. Our moderation team will inspect this lesson.",
+        );
         setIsReportModalOpen(false);
         setReportReason("Inappropriate content");
         setReportDetails("");
       } else {
-        toast.error("Failed to submit report.");
+        toast.error(data.message || "Failed to submit report.");
       }
     } catch (error) {
-      toast.error("An error occurred while reporting.");
+      console.error("Report submission error:", error);
+      toast.error("An error occurred while connecting to the server.");
     } finally {
       setIsSubmittingReport(false);
     }
@@ -273,28 +299,31 @@ export default function LessonDetail() {
     }
 
     if (!commentText.trim() || !user) return;
-    
+
     setIsSubmittingComment(true);
     try {
       const response = await fetch(`${backendUrl}/api/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lessonId: id,
           userId: user.id,
-          text: commentText.trim()
-        })
+          text: commentText.trim(),
+        }),
       });
 
       if (response.ok) {
         const newComment = await response.json();
-        setComments([{
-          ...newComment,
-          creatorName: user.name,
-          creatorAvatar: user.image,
-          createdAt: new Date().toISOString()
-        }, ...comments]);
-        
+        setComments([
+          {
+            ...newComment,
+            creatorName: user.name,
+            creatorAvatar: user.image,
+            createdAt: new Date().toISOString(),
+          },
+          ...comments,
+        ]);
+
         setCommentText("");
         toast.success("Response posted!");
       } else {
@@ -317,11 +346,11 @@ export default function LessonDetail() {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: '2-digit' 
+    if (!dateString) return "";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
     });
   };
 
@@ -336,8 +365,10 @@ export default function LessonDetail() {
   if (!lesson) {
     return (
       <div className="w-full min-h-screen flex flex-col items-center justify-center bg-[#f9fafb] dark:bg-[#0c0c0e] gap-4">
-        <p className="text-xl font-bold text-zinc-700 dark:text-zinc-300">Lesson not found.</p>
-        <Button 
+        <p className="text-xl font-bold text-zinc-700 dark:text-zinc-300">
+          Lesson not found.
+        </p>
+        <Button
           onClick={() => router.back()}
           className="bg-[#0f766e] text-white rounded-xl font-semibold"
         >
@@ -350,27 +381,28 @@ export default function LessonDetail() {
   return (
     <div className="w-full min-h-screen bg-[#f9fafb] dark:bg-[#0c0c0e] py-10 px-4 sm:px-6 lg:px-8 flex justify-center font-sans">
       <article className="w-full max-w-[820px] flex flex-col gap-8">
-        
         {/* Navigation Bar */}
         <div className="flex items-center justify-between">
-          <button 
-            onClick={() => router.back()} 
-            className="flex items-center gap-2 text-[14px] font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer"
+          <Link
+            href="/lessons"
+            className="flex items-center gap-2 text-[14px] font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer w-fit"
           >
             <ArrowLeft className="w-4 h-4" /> Back to Lessons
-          </button>
+          </Link>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handleBookmarkToggle}
               title={isBookmarked ? "Remove Bookmark" : "Save Lesson"}
               className={`p-2 rounded-xl border transition-all cursor-pointer ${
-                isBookmarked 
-                  ? 'bg-teal-50 border-teal-200 text-[#0f766e] dark:bg-teal-500/10 dark:border-teal-500/30' 
-                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white'
+                isBookmarked
+                  ? "bg-teal-50 border-teal-200 text-[#0f766e] dark:bg-teal-500/10 dark:border-teal-500/30"
+                  : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
               }`}
             >
-              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+              <Bookmark
+                className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""}`}
+              />
             </button>
             <button
               onClick={() => setIsReportModalOpen(true)}
@@ -385,11 +417,13 @@ export default function LessonDetail() {
         {/* 1. Featured Cover Image (Blurred and Locked for Non-Premium) */}
         {lesson.coverImage && (
           <div className="w-full h-[280px] sm:h-[400px] rounded-3xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-800 relative bg-zinc-100 dark:bg-zinc-900">
-            <img 
-              src={lesson.coverImage} 
-              alt={lesson.title} 
+            <img
+              src={lesson.coverImage}
+              alt={lesson.title}
               className={`w-full h-full object-cover transition-all duration-300 ${
-                isLocked ? 'filter blur-xl scale-110 select-none pointer-events-none opacity-40' : ''
+                isLocked
+                  ? "filter blur-xl scale-110 select-none pointer-events-none opacity-40"
+                  : ""
               }`}
             />
             {isLocked && (
@@ -411,30 +445,30 @@ export default function LessonDetail() {
         {/* 2. Lesson Title, Category & Tone Badges */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Chip 
-              size="sm" 
+            <Chip
+              size="sm"
               className="bg-[#eef2ff] text-[#4f46e5] dark:bg-indigo-500/10 dark:text-indigo-400 font-bold border-none"
             >
               {lesson.category || "General"}
             </Chip>
 
-            <Chip 
-              size="sm" 
+            <Chip
+              size="sm"
               className="bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 font-bold border-none"
             >
               {lesson.emotionalTone || "Motivational"}
             </Chip>
 
-            {lesson.accessLevel === 'Premium' ? (
-              <Chip 
-                size="sm" 
+            {lesson.accessLevel === "Premium" ? (
+              <Chip
+                size="sm"
                 className="bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 font-bold border border-amber-200/60 dark:border-amber-500/20 flex items-center gap-1"
               >
                 <Lock className="w-3 h-3 inline mr-1" /> Premium Module
               </Chip>
             ) : (
-              <Chip 
-                size="sm" 
+              <Chip
+                size="sm"
                 className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 font-semibold border-none"
               >
                 Free Access
@@ -452,32 +486,48 @@ export default function LessonDetail() {
           <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
             <Calendar className="w-4 h-4 text-[#0f766e]" />
             <div className="flex flex-col">
-              <span className="text-[11px] uppercase font-bold text-zinc-400">Created</span>
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">{formatDate(lesson.createdAt)}</span>
+              <span className="text-[11px] uppercase font-bold text-zinc-400">
+                Created
+              </span>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                {formatDate(lesson.createdAt)}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
             <RefreshCw className="w-4 h-4 text-[#0f766e]" />
             <div className="flex flex-col">
-              <span className="text-[11px] uppercase font-bold text-zinc-400">Updated</span>
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">{formatDate(lesson.updatedAt || lesson.createdAt)}</span>
+              <span className="text-[11px] uppercase font-bold text-zinc-400">
+                Updated
+              </span>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                {formatDate(lesson.updatedAt || lesson.createdAt)}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
             <Globe className="w-4 h-4 text-[#0f766e]" />
             <div className="flex flex-col">
-              <span className="text-[11px] uppercase font-bold text-zinc-400">Visibility</span>
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">{lesson.visibility || "Public"}</span>
+              <span className="text-[11px] uppercase font-bold text-zinc-400">
+                Visibility
+              </span>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                {lesson.visibility || "Public"}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
             <Clock className="w-4 h-4 text-[#0f766e]" />
             <div className="flex flex-col">
-              <span className="text-[11px] uppercase font-bold text-zinc-400">Read Time</span>
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">{readingTimeMinutes} min read</span>
+              <span className="text-[11px] uppercase font-bold text-zinc-400">
+                Read Time
+              </span>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                {readingTimeMinutes} min read
+              </span>
             </div>
           </div>
         </div>
@@ -492,7 +542,7 @@ export default function LessonDetail() {
               <p className="w-3/4 h-4 bg-zinc-800 mb-8 rounded"></p>
               <p className="w-full h-4 bg-zinc-800 mb-4 rounded"></p>
             </div>
-            
+
             <div className="relative z-10 flex flex-col items-center justify-center max-w-md mx-auto">
               <div className="w-16 h-16 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-full flex items-center justify-center mb-4 shadow-sm">
                 <Lock className="w-7 h-7 text-amber-600 dark:text-amber-400" />
@@ -501,12 +551,11 @@ export default function LessonDetail() {
                 Premium Lesson Locked
               </h2>
               <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mb-6 leading-relaxed">
-                This wisdom module contains specialized strategies and full insights reserved exclusively for Premium members.
+                This wisdom module contains specialized strategies and full
+                insights reserved exclusively for Premium members.
               </p>
               <Link href="/pricing" className="w-full sm:w-auto">
-                <Button 
-                  className="w-full sm:w-auto bg-[#0f766e] hover:bg-[#0d6e63] text-white font-bold px-8 py-3 rounded-xl transition-all shadow-md cursor-pointer"
-                >
+                <Button className="w-full sm:w-auto bg-[#0f766e] hover:bg-[#0d6e63] text-white font-bold px-8 py-3 rounded-xl transition-all shadow-md cursor-pointer">
                   Upgrade to Lifetime Premium
                 </Button>
               </Link>
@@ -524,16 +573,29 @@ export default function LessonDetail() {
         <div className="flex flex-wrap items-center justify-between gap-4 py-4 px-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xs">
           <div className="flex items-center gap-6 text-[14px] font-bold text-zinc-600 dark:text-zinc-300">
             <div className="flex items-center gap-2">
-              <Heart className={`w-4 h-4 ${isLiked ? 'fill-red-500 text-red-500' : 'text-zinc-400'}`} />
-              <span>{formatNumber(likesCount)} <span className="font-medium text-zinc-400">Likes</span></span>
+              <Heart
+                className={`w-4 h-4 ${isLiked ? "fill-red-500 text-red-500" : "text-zinc-400"}`}
+              />
+              <span>
+                {formatNumber(likesCount)}{" "}
+                <span className="font-medium text-zinc-400">Likes</span>
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-[#0f766e] text-[#0f766e]' : 'text-zinc-400'}`} />
-              <span>{formatNumber(bookmarksCount)} <span className="font-medium text-zinc-400">Favorites</span></span>
+              <Bookmark
+                className={`w-4 h-4 ${isBookmarked ? "fill-[#0f766e] text-[#0f766e]" : "text-zinc-400"}`}
+              />
+              <span>
+                {formatNumber(bookmarksCount)}{" "}
+                <span className="font-medium text-zinc-400">Favorites</span>
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4 text-zinc-400" />
-              <span>{formatNumber(viewsCount)} <span className="font-medium text-zinc-400">Views</span></span>
+              <span>
+                {formatNumber(viewsCount)}{" "}
+                <span className="font-medium text-zinc-400">Views</span>
+              </span>
             </div>
           </div>
 
@@ -563,10 +625,16 @@ export default function LessonDetail() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-amber-50/60 dark:bg-amber-500/5 border border-amber-200/60 dark:border-amber-500/20 rounded-2xl">
             <div className="flex items-center gap-2 text-[14px] text-amber-800 dark:text-amber-300 font-semibold">
               <Lock className="w-4 h-4 shrink-0" />
-              <span>Interactions, liking, and saving are reserved for Premium members.</span>
+              <span>
+                Interactions, liking, and saving are reserved for Premium
+                members.
+              </span>
             </div>
             <Link href="/pricing" className="w-full sm:w-auto">
-              <Button size="sm" className="w-full sm:w-auto bg-[#0f766e] text-white font-bold px-4 py-2 rounded-xl shadow-xs">
+              <Button
+                size="sm"
+                className="w-full sm:w-auto bg-[#0f766e] text-white font-bold px-4 py-2 rounded-xl shadow-xs"
+              >
                 Unlock
               </Button>
             </Link>
@@ -578,24 +646,28 @@ export default function LessonDetail() {
                 onClick={handleLikeToggle}
                 className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[14px] transition-all cursor-pointer shadow-xs ${
                   isLiked
-                    ? 'bg-red-500 text-white shadow-red-500/20'
-                    : 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50'
+                    ? "bg-red-500 text-white shadow-red-500/20"
+                    : "bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50"
                 }`}
               >
-                <Heart className={`w-4 h-4 ${isLiked ? 'fill-white' : 'text-red-500'}`} />
-                <span>{isLiked ? 'Liked' : 'Like'}</span>
+                <Heart
+                  className={`w-4 h-4 ${isLiked ? "fill-white" : "text-red-500"}`}
+                />
+                <span>{isLiked ? "Liked" : "Like"}</span>
               </button>
 
               <button
                 onClick={handleBookmarkToggle}
                 className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[14px] transition-all cursor-pointer shadow-xs ${
                   isBookmarked
-                    ? 'bg-[#0f766e] text-white'
-                    : 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50'
+                    ? "bg-[#0f766e] text-white"
+                    : "bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50"
                 }`}
               >
-                <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-white' : 'text-[#0f766e]'}`} />
-                <span>{isBookmarked ? 'Saved' : 'Save to Favorites'}</span>
+                <Bookmark
+                  className={`w-4 h-4 ${isBookmarked ? "fill-white" : "text-[#0f766e]"}`}
+                />
+                <span>{isBookmarked ? "Saved" : "Save to Favorites"}</span>
               </button>
             </div>
 
@@ -610,16 +682,16 @@ export default function LessonDetail() {
 
         {/* 7. Dedicated Author / Creator Section */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <Link 
+          <Link
             href={authorProfileHref}
             className="flex items-center gap-4 group cursor-pointer"
           >
-            <img 
+            <img
               src={
-                lesson.creatorAvatar || 
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(lesson.creatorName || 'Author')}&background=0f766e&color=fff`
-              } 
-              alt={lesson.creatorName || "Author"} 
+                lesson.creatorAvatar ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(lesson.creatorName || "Author")}&background=0f766e&color=fff`
+              }
+              alt={lesson.creatorName || "Author"}
               className="w-16 h-16 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700 shrink-0 group-hover:ring-2 group-hover:ring-[#0f766e] transition-all"
             />
             <div className="flex flex-col">
@@ -632,19 +704,21 @@ export default function LessonDetail() {
                 </span>
               </div>
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
-                {authorStats.totalLessons} {authorStats.totalLessons === 1 ? 'lesson' : 'lessons'} published to the community library
+                {authorStats.totalLessons}{" "}
+                {authorStats.totalLessons === 1 ? "lesson" : "lessons"}{" "}
+                published to the community library
               </p>
             </div>
           </Link>
 
-          <Link href={authorProfileHref}>
-            <Button
-              variant="bordered"
-              className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold rounded-xl text-[13px] hover:border-[#0f766e] hover:text-[#0f766e] transition-colors cursor-pointer"
-            >
+          <Button
+            variant="bordered"
+            className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold rounded-xl text-[13px] hover:border-[#0f766e] hover:text-[#0f766e] transition-colors cursor-pointer"
+          >
+            <Link href={authorProfileHref}>
               View all lessons by this author
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
 
         {/* 8. Comment & Discussion Section (Locked if Lesson is Premium) */}
@@ -665,7 +739,8 @@ export default function LessonDetail() {
                 Responses & Discussion Locked
               </h4>
               <p className="text-[14px] text-zinc-500 dark:text-zinc-400 max-w-md">
-                Discussions and author takeaways for premium modules are reserved for Premium subscribers.
+                Discussions and author takeaways for premium modules are
+                reserved for Premium subscribers.
               </p>
               <Link href="/pricing" className="mt-2">
                 <Button className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-bold px-6 py-2 rounded-xl shadow-xs">
@@ -676,17 +751,24 @@ export default function LessonDetail() {
           ) : (
             <>
               {user ? (
-                <form onSubmit={handlePostComment} className="flex gap-4 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xs">
+                <form
+                  onSubmit={handlePostComment}
+                  className="flex gap-4 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xs"
+                >
                   <div className="w-10 h-10 rounded-full bg-[#0f766e] text-white flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
                     {user.image ? (
-                      <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
+                      <img
+                        src={user.image}
+                        alt={user.name}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       userInitial
                     )}
                   </div>
 
                   <div className="flex flex-col flex-1 gap-3">
-                    <textarea 
+                    <textarea
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       placeholder="Share your reflection or key takeaway..."
@@ -694,12 +776,18 @@ export default function LessonDetail() {
                       className="w-full bg-[#f9fafb] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#0f766e] transition-colors resize-none"
                     />
                     <div className="flex justify-end">
-                      <button 
+                      <button
                         type="submit"
                         disabled={!commentText.trim() || isSubmittingComment}
                         className="bg-[#0f766e] hover:bg-[#0d6e63] disabled:opacity-50 text-white font-semibold text-[13px] px-5 py-2 rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
                       >
-                        {isSubmittingComment ? <Spinner size="sm" color="white" /> : <><Send className="w-3.5 h-3.5" /> Post Comment</>}
+                        {isSubmittingComment ? (
+                          <Spinner size="sm" color="white" />
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" /> Post Comment
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -719,13 +807,16 @@ export default function LessonDetail() {
 
               <div className="flex flex-col gap-4">
                 {comments.map((comment) => (
-                  <div 
-                    key={comment._id || Math.random()} 
+                  <div
+                    key={comment._id || Math.random()}
                     className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl flex gap-3.5 shadow-xs"
                   >
-                    <img 
-                      src={comment.creatorAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.creatorName || 'User')}&background=random`} 
-                      alt={comment.creatorName} 
+                    <img
+                      src={
+                        comment.creatorAvatar ||
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.creatorName || "User")}&background=random`
+                      }
+                      alt={comment.creatorName}
                       className="w-9 h-9 rounded-full object-cover shrink-0 border border-zinc-200 dark:border-zinc-700 mt-0.5"
                     />
                     <div className="flex flex-col flex-1">
@@ -753,20 +844,18 @@ export default function LessonDetail() {
             </>
           )}
         </section>
-
       </article>
 
       {/* REPORT CONFIRMATION MODAL */}
       {isReportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs px-4">
           <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-7 shadow-2xl flex flex-col gap-5">
-            
             <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
               <div className="flex items-center gap-2.5 text-red-600 dark:text-red-400 font-bold text-lg">
                 <Flag className="w-5 h-5" />
                 <h2>Report Lesson</h2>
               </div>
-              <button 
+              <button
                 onClick={() => setIsReportModalOpen(false)}
                 className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition-colors cursor-pointer"
               >
@@ -784,11 +873,21 @@ export default function LessonDetail() {
                   onChange={(e) => setReportReason(e.target.value)}
                   className="w-full bg-[#f9fafb] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#0f766e] cursor-pointer"
                 >
-                  <option value="Inappropriate content">Inappropriate or offensive content</option>
-                  <option value="Spam or promotional">Spam or advertising</option>
-                  <option value="Misinformation">Misleading or false information</option>
-                  <option value="Harassment or hate speech">Harassment or hate speech</option>
-                  <option value="Copyright violation">Copyright or intellectual property theft</option>
+                  <option value="Inappropriate content">
+                    Inappropriate or offensive content
+                  </option>
+                  <option value="Spam or promotional">
+                    Spam or advertising
+                  </option>
+                  <option value="Misinformation">
+                    Misleading or false information
+                  </option>
+                  <option value="Harassment or hate speech">
+                    Harassment or hate speech
+                  </option>
+                  <option value="Copyright violation">
+                    Copyright or intellectual property theft
+                  </option>
                   <option value="Other">Other</option>
                 </select>
               </div>
@@ -797,7 +896,7 @@ export default function LessonDetail() {
                 <label className="text-[13px] font-bold text-zinc-700 dark:text-zinc-300">
                   Additional Details (Optional)
                 </label>
-                <textarea 
+                <textarea
                   rows={3}
                   value={reportDetails}
                   onChange={(e) => setReportDetails(e.target.value)}
@@ -819,15 +918,17 @@ export default function LessonDetail() {
                   disabled={isSubmittingReport}
                   className="px-5 py-2.5 rounded-xl text-[14px] font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center min-w-[120px]"
                 >
-                  {isSubmittingReport ? <Spinner size="sm" color="white" /> : "Submit Report"}
+                  {isSubmittingReport ? (
+                    <Spinner size="sm" color="white" />
+                  ) : (
+                    "Submit Report"
+                  )}
                 </button>
               </div>
             </form>
-
           </div>
         </div>
       )}
-
     </div>
   );
 }

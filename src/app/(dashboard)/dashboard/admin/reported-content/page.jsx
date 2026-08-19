@@ -14,7 +14,8 @@ import {
   User, 
   Clock, 
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Mail
 } from "lucide-react";
 import { Spinner, Button } from "@heroui/react";
 import toast from "react-hot-toast";
@@ -37,7 +38,7 @@ export default function ReportedContentPage() {
       const response = await fetch(`${backendUrl}/api/admin/reports`);
       if (response.ok) {
         const data = await response.json();
-        setReports(data);
+        setReports(Array.isArray(data) ? data : []);
       } else {
         toast.error("Failed to load reports.");
       }
@@ -53,21 +54,30 @@ export default function ReportedContentPage() {
     fetchReports();
   }, [backendUrl]);
 
-  // Group open reports by lessonId
-  const openReports = reports.filter((r) => r.status !== "Resolved");
-  const resolvedReportsCount = reports.filter((r) => r.status === "Resolved").length;
+  // Case-insensitive status grouping
+  const openReports = reports.filter((r) => r.status?.toLowerCase() !== "resolved");
+  const resolvedReportsCount = reports.filter((r) => r.status?.toLowerCase() === "resolved").length;
 
   const groupedMap = {};
   openReports.forEach((report) => {
     const key = report.lessonId?.toString() || "unknown";
+    const detectedAuthor = 
+      report.authorName || 
+      report.creatorName || 
+      report.lessonAuthor || 
+      "Community Creator";
+
     if (!groupedMap[key]) {
       groupedMap[key] = {
         lessonId: report.lessonId,
         lessonTitle: report.lessonTitle || "Untitled Lesson",
-        authorName: report.authorName || "Anonymous",
+        authorName: detectedAuthor,
         reports: [],
       };
+    } else if (groupedMap[key].authorName === "Community Creator" && detectedAuthor !== "Community Creator") {
+      groupedMap[key].authorName = detectedAuthor;
     }
+
     groupedMap[key].reports.push(report);
   });
 
@@ -79,7 +89,7 @@ export default function ReportedContentPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentLessons = groupedReportedLessons.slice(indexOfFirstItem, indexOfLastItem);
 
-  // Handle Ignore (Clears all reports for this lesson without deleting it)
+  // Handle Ignore / Dismiss Reports
   const handleIgnoreReports = async (lessonId) => {
     try {
       const response = await fetch(`${backendUrl}/api/admin/reports/lesson/${lessonId}/resolve`, {
@@ -89,26 +99,11 @@ export default function ReportedContentPage() {
       if (response.ok) {
         toast.success("Reports cleared. Lesson remains active.");
         setReports((prev) =>
-          prev.map((r) => (r.lessonId === lessonId ? { ...r, status: "Resolved" } : r))
+          prev.map((r) => (r.lessonId === lessonId ? { ...r, status: "resolved" } : r))
         );
         setIsModalOpen(false);
       } else {
-        // Fallback: resolve reports individually if batch endpoint is not yet mounted
-        const targetReports = openReports.filter((r) => r.lessonId === lessonId);
-        await Promise.all(
-          targetReports.map((r) =>
-            fetch(`${backendUrl}/api/admin/reports/${r._id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "Resolved" }),
-            })
-          )
-        );
-        toast.success("Reports cleared.");
-        setReports((prev) =>
-          prev.map((r) => (r.lessonId === lessonId ? { ...r, status: "Resolved" } : r))
-        );
-        setIsModalOpen(false);
+        toast.error("Failed to clear reports.");
       }
     } catch (error) {
       console.error("Error ignoring reports:", error);
@@ -116,7 +111,7 @@ export default function ReportedContentPage() {
     }
   };
 
-  // Handle Delete Lesson (Permanently deletes lesson & clears its reports)
+  // Handle Delete Lesson
   const handleDeleteLesson = async (lessonId) => {
     if (!window.confirm("Are you sure you want to permanently delete this lesson? This action cannot be undone.")) {
       return;
@@ -129,9 +124,8 @@ export default function ReportedContentPage() {
 
       if (response.ok) {
         toast.success("Lesson permanently deleted.");
-        // Mark reports for this lesson as resolved in state
         setReports((prev) =>
-          prev.map((r) => (r.lessonId === lessonId ? { ...r, status: "Resolved" } : r))
+          prev.map((r) => (r.lessonId === lessonId ? { ...r, status: "resolved" } : r))
         );
         setIsModalOpen(false);
       } else {
@@ -255,7 +249,7 @@ export default function ReportedContentPage() {
                   </td>
 
                   {/* Author */}
-                  <td className="py-4 px-6 text-zinc-600 dark:text-zinc-300 font-medium whitespace-nowrap">
+                  <td className="py-4 px-6 text-zinc-700 dark:text-zinc-200 font-semibold whitespace-nowrap">
                     {group.authorName}
                   </td>
 
@@ -267,18 +261,17 @@ export default function ReportedContentPage() {
                     </span>
                   </td>
 
-                  {/* View Details / Reasons Modal Trigger */}
+                  {/* View Details Modal Trigger */}
                   <td className="py-4 px-6 whitespace-nowrap">
-                    <Button
-                      size="sm"
+                    <button
                       onClick={() => {
                         setSelectedLessonGroup(group);
                         setIsModalOpen(true);
                       }}
-                      className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 font-semibold text-[12px] px-3.5 py-1.5 rounded-xl h-auto transition-colors cursor-pointer flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700"
+                      className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 font-semibold text-[12px] px-3.5 py-1.5 rounded-xl transition-colors cursor-pointer inline-flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700"
                     >
                       <Eye className="w-3.5 h-3.5 text-zinc-500" /> View Reasons
-                    </Button>
+                    </button>
                   </td>
 
                   {/* Actions: Ignore / Delete Lesson */}
@@ -289,7 +282,7 @@ export default function ReportedContentPage() {
                       <button
                         onClick={() => handleIgnoreReports(group.lessonId)}
                         title="Ignore and dismiss all reports for this lesson"
-                        className="px-3.5 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold text-[13px] transition-colors cursor-pointer flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700"
+                        className="px-3.5 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold text-[13px] transition-colors cursor-pointer inline-flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700"
                       >
                         <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Ignore
                       </button>
@@ -298,7 +291,7 @@ export default function ReportedContentPage() {
                       <button
                         onClick={() => handleDeleteLesson(group.lessonId)}
                         title="Permanently delete this lesson"
-                        className="px-3.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-semibold text-[13px] transition-colors cursor-pointer flex items-center gap-1.5 border border-red-200 dark:border-red-900/50"
+                        className="px-3.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-semibold text-[13px] transition-colors cursor-pointer inline-flex items-center gap-1.5 border border-red-200 dark:border-red-900/50"
                       >
                         <Trash2 className="w-4 h-4" /> Delete Lesson
                       </button>
@@ -320,7 +313,7 @@ export default function ReportedContentPage() {
                         No open reports found
                       </p>
                       <p className="text-[13px] text-zinc-500 max-w-sm">
-                        All flagged content has been reviewed and resolved. Community content is clean!
+                        All flagged content has been reviewed and resolved.
                       </p>
                     </div>
                   </td>
@@ -374,7 +367,7 @@ export default function ReportedContentPage() {
                   {selectedLessonGroup.lessonTitle}
                 </span>
                 <span className="text-[12px] text-zinc-500">
-                  Author: {selectedLessonGroup.authorName} • {selectedLessonGroup.reports.length} total reports
+                  Author: <span className="font-semibold text-zinc-700 dark:text-zinc-300">{selectedLessonGroup.authorName}</span> • {selectedLessonGroup.reports.length} total reports
                 </span>
               </div>
               
@@ -398,7 +391,9 @@ export default function ReportedContentPage() {
                       <div className="w-6 h-6 rounded-full bg-teal-50 dark:bg-teal-500/10 text-[#0f766e] dark:text-[#16A696] flex items-center justify-center text-[11px]">
                         <User className="w-3.5 h-3.5" />
                       </div>
-                      <span>{report.userName || "Anonymous User"}</span>
+                      <span className="truncate max-w-[220px]">
+                        {report.reporterEmail || report.userName || report.reporterName || "Anonymous User"}
+                      </span>
                     </div>
 
                     <span className="text-[12px] text-zinc-400 flex items-center gap-1">
@@ -406,11 +401,26 @@ export default function ReportedContentPage() {
                     </span>
                   </div>
 
-                  <div className="bg-white dark:bg-zinc-950 p-3 rounded-xl border border-zinc-200/70 dark:border-zinc-800/60 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                    <span className="font-semibold text-red-600 dark:text-red-400 block mb-1 text-[11px] uppercase tracking-wider">
-                      Report Reason:
-                    </span>
-                    {report.reason}
+                  <div className="bg-white dark:bg-zinc-950 p-3 rounded-xl border border-zinc-200/70 dark:border-zinc-800/60 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed flex flex-col gap-1.5">
+                    <div>
+                      <span className="font-semibold text-red-600 dark:text-red-400 text-[11px] uppercase tracking-wider block mb-0.5">
+                        Selected Reason:
+                      </span>
+                      <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                        {report.reason}
+                      </span>
+                    </div>
+
+                    {report.details && (
+                      <div className="pt-1.5 border-t border-zinc-100 dark:border-zinc-800/60">
+                        <span className="font-semibold text-zinc-400 text-[11px] uppercase tracking-wider block mb-0.5">
+                          Additional Details:
+                        </span>
+                        <p className="text-zinc-600 dark:text-zinc-400 italic">
+                          &ldquo;{report.details}&rdquo;
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -427,18 +437,18 @@ export default function ReportedContentPage() {
               </Link>
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <Button
+                <button
                   onClick={() => handleIgnoreReports(selectedLessonGroup.lessonId)}
-                  className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 font-semibold text-[13px] px-4 py-2 rounded-xl cursor-pointer"
+                  className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 font-semibold text-[13px] px-4 py-2 rounded-xl cursor-pointer inline-flex items-center gap-1.5"
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-500" /> Ignore All
-                </Button>
-                <Button
+                </button>
+                <button
                   onClick={() => handleDeleteLesson(selectedLessonGroup.lessonId)}
-                  className="bg-red-600 hover:bg-red-700 text-white font-semibold text-[13px] px-4 py-2 rounded-xl cursor-pointer"
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold text-[13px] px-4 py-2 rounded-xl cursor-pointer inline-flex items-center gap-1.5"
                 >
                   <Trash2 className="w-4 h-4" /> Delete Lesson
-                </Button>
+                </button>
               </div>
             </div>
 

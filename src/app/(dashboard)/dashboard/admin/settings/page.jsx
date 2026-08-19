@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import { authClient } from '@/lib/auth-client';
-import { Spinner, Button } from '@heroui/react';
-import toast from 'react-hot-toast';
-import { 
-  Shield, 
-  Mail, 
-  User as UserIcon, 
-  CheckCircle2, 
-  BookOpen, 
-  Users, 
-  Flag, 
-  Camera, 
+import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
+import { Spinner, Button } from "@heroui/react";
+import toast from "react-hot-toast";
+import {
+  Shield,
+  Mail,
+  User as UserIcon,
+  CheckCircle2,
+  BookOpen,
+  Users,
+  Flag,
+  Camera,
   Trash2,
   TrendingUp,
-  Activity
-} from 'lucide-react';
+  Activity,
+} from "lucide-react";
 
 export default function AdminProfileSettings() {
   const { data: session } = authClient.useSession();
@@ -25,21 +25,22 @@ export default function AdminProfileSettings() {
 
   const [fullName, setFullName] = useState("");
   const [avatarPreview, setAvatarPreview] = useState(null);
-  
+
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  
+
   // Admin Activity Metrics State
   const [adminStats, setAdminStats] = useState({
     resolvedReports: 0,
     totalLessons: 0,
     totalUsers: 0,
-    myLessons: 0
+    myLessons: 0,
   });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   const fileInputRef = useRef(null);
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   // Sync user name on session load
   useEffect(() => {
@@ -55,7 +56,9 @@ export default function AdminProfileSettings() {
         const [statsRes, reportsRes, myLessonsRes] = await Promise.all([
           fetch(`${backendUrl}/api/admin/stats`),
           fetch(`${backendUrl}/api/admin/reports`),
-          user?.id ? fetch(`${backendUrl}/api/my-lessons/${user.id}`) : Promise.resolve(null)
+          user?.id
+            ? fetch(`${backendUrl}/api/my-lessons/${user.id}`)
+            : Promise.resolve(null),
         ]);
 
         let totalUsers = 0;
@@ -71,7 +74,9 @@ export default function AdminProfileSettings() {
 
         if (reportsRes.ok) {
           const reportsData = await reportsRes.json();
-          resolvedReports = reportsData.filter(r => r.status === 'Resolved').length;
+          resolvedReports = reportsData.filter(
+            (r) => r.status === "Resolved",
+          ).length;
         }
 
         if (myLessonsRes && myLessonsRes.ok) {
@@ -83,7 +88,7 @@ export default function AdminProfileSettings() {
           resolvedReports,
           totalLessons,
           totalUsers,
-          myLessons
+          myLessons,
         });
       } catch (error) {
         console.error("Error fetching admin activity:", error);
@@ -95,7 +100,9 @@ export default function AdminProfileSettings() {
     fetchAdminActivity();
   }, [user?.id, backendUrl]);
 
-  const initial = fullName ? fullName.charAt(0).toUpperCase() : (user?.name?.charAt(0).toUpperCase() || 'A');
+  const initial = fullName
+    ? fullName.charAt(0).toUpperCase()
+    : user?.name?.charAt(0).toUpperCase() || "A";
   const currentImage = avatarPreview !== null ? avatarPreview : user?.image;
 
   // 1. Handle Automatic Picture Upload to ImgBB and Database
@@ -110,26 +117,30 @@ export default function AdminProfileSettings() {
     try {
       const formData = new FormData();
       formData.append("image", file);
-      
-      const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY; 
+
+      const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
       const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
         method: "POST",
         body: formData,
       });
-      
+
       const imgData = await res.json();
-      
+
       if (imgData.success) {
-        const uploadedImageUrl = imgData.data.url; 
-        
+        const uploadedImageUrl = imgData.data.url;
+
         const { error } = await authClient.updateUser({
-          image: uploadedImageUrl
+          image: uploadedImageUrl,
         });
 
         if (error) {
-          toast.error(error.message || "Failed to save picture to database.", { id: toastId });
+          toast.error(error.message || "Failed to save picture to database.", {
+            id: toastId,
+          });
         } else {
-          toast.success("Profile picture updated successfully!", { id: toastId });
+          toast.success("Profile picture updated successfully!", {
+            id: toastId,
+          });
         }
       } else {
         toast.error("Image upload failed.", { id: toastId });
@@ -148,11 +159,13 @@ export default function AdminProfileSettings() {
     const toastId = toast.loading("Removing profile picture...");
     try {
       const { error } = await authClient.updateUser({
-        image: ""
+        image: "",
       });
 
       if (error) {
-        toast.error(error.message || "Failed to remove picture.", { id: toastId });
+        toast.error(error.message || "Failed to remove picture.", {
+          id: toastId,
+        });
       } else {
         setAvatarPreview("");
         toast.success("Profile picture removed.", { id: toastId });
@@ -172,14 +185,16 @@ export default function AdminProfileSettings() {
 
     setIsSaving(true);
     const toastId = toast.loading("Saving changes...");
-    
+
     try {
       const { error } = await authClient.updateUser({
-        name: fullName
+        name: fullName,
       });
 
       if (error) {
-        toast.error(error.message || "Failed to update profile details.", { id: toastId });
+        toast.error(error.message || "Failed to update profile details.", {
+          id: toastId,
+        });
       } else {
         toast.success("Display name updated successfully!", { id: toastId });
       }
@@ -192,20 +207,19 @@ export default function AdminProfileSettings() {
 
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col gap-10 font-sans pb-16">
-      
       {/* Header */}
       <div>
         <h1 className="text-3xl font-extrabold text-[#1a202c] dark:text-white tracking-tight">
           Admin Profile & Settings
         </h1>
         <p className="text-[15px] text-zinc-600 dark:text-zinc-400 mt-1">
-          Manage your administrator identity, credentials, and review platform moderation activity.
+          Manage your administrator identity, credentials, and review platform
+          moderation activity.
         </p>
       </div>
 
       {/* Profile Details Card */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-sm flex flex-col gap-8">
-        
         {/* Profile Header Strip */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-zinc-100 dark:border-zinc-800 gap-4">
           <div className="flex items-center gap-3">
@@ -213,7 +227,8 @@ export default function AdminProfileSettings() {
               Admin Credentials
             </h2>
             <span className="inline-flex items-center gap-1.5 text-[12px] font-bold px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-500/20 shadow-xs">
-              <Shield className="w-3.5 h-3.5 fill-indigo-500 text-indigo-500" /> System Administrator
+              <Shield className="w-3.5 h-3.5 fill-indigo-500 text-indigo-500" />{" "}
+              System Administrator
             </span>
           </div>
 
@@ -226,17 +241,17 @@ export default function AdminProfileSettings() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="relative">
             {currentImage ? (
-              <img 
-                src={currentImage} 
-                alt="Profile Avatar" 
-                className={`w-24 h-24 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700 shadow-sm transition-opacity ${isUploadingImage ? 'opacity-40' : 'opacity-100'}`}
+              <img
+                src={currentImage}
+                alt="Profile Avatar"
+                className={`w-24 h-24 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700 shadow-sm transition-opacity ${isUploadingImage ? "opacity-40" : "opacity-100"}`}
               />
             ) : (
               <div className="w-24 h-24 rounded-full flex items-center justify-center bg-[#0f766e] text-white text-3xl font-extrabold border-2 border-zinc-200 dark:border-zinc-700 shadow-sm">
                 {initial}
               </div>
             )}
-            
+
             {isUploadingImage && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <Spinner size="md" color="current" className="text-[#0f766e]" />
@@ -245,16 +260,16 @@ export default function AdminProfileSettings() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <input 
-              type="file" 
+            <input
+              type="file"
               accept="image/*"
-              className="hidden" 
+              className="hidden"
               ref={fileInputRef}
               onChange={handleImageChange}
             />
-            
+
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingImage}
@@ -264,7 +279,7 @@ export default function AdminProfileSettings() {
               </button>
 
               {currentImage && (
-                <button 
+                <button
                   type="button"
                   onClick={handleRemovePicture}
                   disabled={isUploadingImage}
@@ -282,16 +297,15 @@ export default function AdminProfileSettings() {
 
         {/* Details Form */}
         <form onSubmit={handleSaveDetails} className="flex flex-col gap-6">
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
             {/* Display Name (Editable) */}
             <div className="flex flex-col gap-2">
               <label className="text-[13px] font-bold text-zinc-700 dark:text-zinc-200 flex items-center gap-2">
-                <UserIcon className="w-4 h-4 text-zinc-400" /> Admin Display Name
+                <UserIcon className="w-4 h-4 text-zinc-400" /> Admin Display
+                Name
               </label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Enter admin name"
@@ -310,14 +324,13 @@ export default function AdminProfileSettings() {
                   Read-only
                 </span>
               </div>
-              <input 
-                type="email" 
+              <input
+                type="email"
                 value={user?.email || ""}
                 disabled
                 className="w-full bg-zinc-100/70 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800/80 rounded-xl px-4 py-3 text-[14px] text-zinc-500 dark:text-zinc-400 outline-none cursor-not-allowed select-none"
               />
             </div>
-
           </div>
 
           <div className="pt-2 flex justify-start">
@@ -329,14 +342,11 @@ export default function AdminProfileSettings() {
               {isSaving ? <Spinner size="sm" color="white" /> : "Save Changes"}
             </button>
           </div>
-
         </form>
-
       </div>
 
       {/* Admin Activity & Moderation Summary */}
       <div className="flex flex-col gap-6">
-        
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-[#0f766e] dark:text-[#16A696] flex items-center justify-center">
             <Activity className="w-4 h-4" />
@@ -352,7 +362,6 @@ export default function AdminProfileSettings() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          
           {/* Card 1: Moderated / Resolved Reports */}
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -363,7 +372,11 @@ export default function AdminProfileSettings() {
             </div>
             <div>
               <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white leading-tight">
-                {isLoadingStats ? <Spinner size="sm" color="current" /> : adminStats.resolvedReports}
+                {isLoadingStats ? (
+                  <Spinner size="sm" color="current" />
+                ) : (
+                  adminStats.resolvedReports
+                )}
               </h3>
               <p className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Moderated reports
@@ -381,7 +394,11 @@ export default function AdminProfileSettings() {
             </div>
             <div>
               <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white leading-tight">
-                {isLoadingStats ? <Spinner size="sm" color="current" /> : adminStats.totalUsers}
+                {isLoadingStats ? (
+                  <Spinner size="sm" color="current" />
+                ) : (
+                  adminStats.totalUsers
+                )}
               </h3>
               <p className="text-[12px] font-medium text-zinc-500 mt-2">
                 Active community members
@@ -399,7 +416,11 @@ export default function AdminProfileSettings() {
             </div>
             <div>
               <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white leading-tight">
-                {isLoadingStats ? <Spinner size="sm" color="current" /> : adminStats.totalLessons}
+                {isLoadingStats ? (
+                  <Spinner size="sm" color="current" />
+                ) : (
+                  adminStats.totalLessons
+                )}
               </h3>
               <p className="text-[12px] font-medium text-[#0f766e] dark:text-[#16A696] mt-2 flex items-center gap-1">
                 <TrendingUp className="w-3.5 h-3.5" /> Platform curriculum
@@ -417,37 +438,43 @@ export default function AdminProfileSettings() {
             </div>
             <div>
               <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white leading-tight">
-                {isLoadingStats ? <Spinner size="sm" color="current" /> : adminStats.myLessons}
+                {isLoadingStats ? (
+                  <Spinner size="sm" color="current" />
+                ) : (
+                  adminStats.myLessons
+                )}
               </h3>
               <p className="text-[12px] font-medium text-zinc-500 mt-2">
                 Created by this account
               </p>
             </div>
           </div>
-
         </div>
 
         {/* Navigation Shortcuts for Admin Control */}
         <div className="flex flex-wrap items-center gap-4 pt-2">
-          <Link href="/dashboard/admin/reported-content">
-            <Button className="bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 font-semibold text-[13px] rounded-xl cursor-pointer">
-              Moderate Flagged Content
-            </Button>
+          <Link
+            href="/dashboard/admin/reported-content"
+            className="bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 font-semibold text-[13px] px-4 py-2 rounded-xl transition-colors cursor-pointer inline-flex items-center"
+          >
+            Moderate Flagged Content
           </Link>
-          <Link href="/dashboard/admin/manage-users">
-            <Button className="bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 font-semibold text-[13px] rounded-xl cursor-pointer">
-              User Permissions & Roles
-            </Button>
+
+          <Link
+            href="/dashboard/admin/manage-users"
+            className="bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 font-semibold text-[13px] px-4 py-2 rounded-xl transition-colors cursor-pointer inline-flex items-center"
+          >
+            User Permissions & Roles
           </Link>
-          <Link href="/dashboard/admin/manage-lessons">
-            <Button className="bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 font-semibold text-[13px] rounded-xl cursor-pointer">
-              Curate Featured Lessons
-            </Button>
+
+          <Link
+            href="/dashboard/admin/manage-lessons"
+            className="bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 font-semibold text-[13px] px-4 py-2 rounded-xl transition-colors cursor-pointer inline-flex items-center"
+          >
+            Curate Featured Lessons
           </Link>
         </div>
-
       </div>
-
     </div>
   );
 }

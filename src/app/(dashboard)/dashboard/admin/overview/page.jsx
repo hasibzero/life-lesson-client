@@ -39,22 +39,46 @@ export default function AdminOverviewPage() {
     const fetchAdminOverview = async () => {
       try {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-        const res = await fetch(`${backendUrl}/api/admin/stats`);
+        const [statsRes, reportsRes, allLessonsRes] = await Promise.all([
+          fetch(`${backendUrl}/api/admin/stats`),
+          fetch(`${backendUrl}/api/admin/reports`),
+          fetch(`${backendUrl}/api/lessons`)
+        ]);
 
-        if (res.ok) {
-          const data = await res.json();
-          setAnalytics({
-            totalUsers: data.totalUsers || 0,
-            totalPublicLessons: data.totalPublicLessons || 0,
-            reportedLessons: data.reportedLessons || 0,
-            todayLessons: data.todayLessons || 0,
-            lessonGrowth: data.lessonGrowth || [],
-            userGrowth: data.userGrowth || [],
-            activeContributors: data.activeContributors || [],
-          });
-        } else {
-          toast.error("Failed to load platform analytics.");
+        let statsData = {};
+        if (statsRes.ok) {
+          statsData = await statsRes.json();
         }
+
+        // Calculate fallback for open reports if not directly returned
+        let openReportsCount = statsData.reportedLessons;
+        if (openReportsCount === undefined && reportsRes.ok) {
+          const reportsData = await reportsRes.json();
+          if (Array.isArray(reportsData)) {
+            const pending = reportsData.filter(r => r.status?.toLowerCase() !== "resolved");
+            const unique = new Set(pending.map(r => r.lessonId?.toString()).filter(Boolean));
+            openReportsCount = unique.size || pending.length;
+          }
+        }
+
+        // Calculate fallback for public lessons count
+        let publicCount = statsData.totalPublicLessons ?? statsData.totalLessons;
+        if (!publicCount && allLessonsRes.ok) {
+          const lessonsData = await allLessonsRes.json();
+          if (Array.isArray(lessonsData)) {
+            publicCount = lessonsData.filter(l => l.visibility === "Public" || l.isReviewed).length || lessonsData.length;
+          }
+        }
+
+        setAnalytics({
+          totalUsers: statsData.totalUsers || 0,
+          totalPublicLessons: publicCount || 0,
+          reportedLessons: openReportsCount || 0,
+          todayLessons: statsData.todayLessons || 0,
+          lessonGrowth: Array.isArray(statsData.lessonGrowth) ? statsData.lessonGrowth : [],
+          userGrowth: Array.isArray(statsData.userGrowth) ? statsData.userGrowth : [],
+          activeContributors: Array.isArray(statsData.activeContributors) ? statsData.activeContributors : [],
+        });
       } catch (error) {
         console.error("Error fetching admin analytics:", error);
         toast.error("Server connection error.");
@@ -94,10 +118,11 @@ export default function AdminOverviewPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/dashboard/admin/add-lesson">
-            <Button className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm cursor-pointer">
-              + New Lesson
-            </Button>
+          <Link
+            href="/dashboard/admin/add-lesson"
+            className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm cursor-pointer inline-flex items-center text-sm"
+          >
+            + New Lesson
           </Link>
         </div>
       </div>
@@ -188,7 +213,7 @@ export default function AdminOverviewPage() {
 
       </div>
 
-      {/* Analytics Graphs (Lesson Growth & User Growth) */}
+      {/* Analytics Graphs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Graph 1: Lesson Creation Growth */}
@@ -294,7 +319,7 @@ export default function AdminOverviewPage() {
       {/* Row 3: Most Active Contributors & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Most Active Contributors (2 Columns) */}
+        {/* Most Active Contributors */}
         <div className="lg:col-span-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-6">
@@ -332,7 +357,7 @@ export default function AdminOverviewPage() {
                       <img
                         src={
                           author.image ||
-                          `https://ui-avatars.com/api/?name=${author.name || "User"}&background=random`
+                          `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || "User")}&background=random`
                         }
                         alt={author.name}
                         className="w-10 h-10 rounded-full object-cover border border-zinc-200 dark:border-zinc-700 shrink-0"
@@ -371,7 +396,7 @@ export default function AdminOverviewPage() {
           </div>
         </div>
 
-        {/* Quick Admin Actions (1 Column) */}
+        {/* Quick Shortcuts */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div>
             <h3 className="text-lg font-bold text-[#1a202c] dark:text-white mb-4">

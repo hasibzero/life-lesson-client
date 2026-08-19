@@ -1,36 +1,38 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import { authClient } from '@/lib/auth-client';
-import { Spinner, Button } from '@heroui/react';
-import toast from 'react-hot-toast';
-import { 
-  Star, 
-  Mail, 
-  User as UserIcon, 
-  BookOpen, 
-  Bookmark, 
-  Lock, 
-  Clock, 
-  ArrowRight, 
-  Camera, 
+import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
+import { Spinner, Button } from "@heroui/react";
+import toast from "react-hot-toast";
+import {
+  Star,
+  Mail,
+  User as UserIcon,
+  BookOpen,
+  Bookmark,
+  Lock,
+  Clock,
+  ArrowRight,
+  Camera,
   Trash2,
-  Sparkles
-} from 'lucide-react';
+  Sparkles,
+  PlusCircle,
+  LoaderIcon,
+} from "lucide-react";
 
 export default function ProfileSettings() {
   const { data: session } = authClient.useSession();
   const user = session?.user;
 
-  const isPremiumUser = user?.role === 'admin' || user?.plan === 'premium';
+  const isPremiumUser = user?.role === "admin" || user?.plan === "premium";
 
   const [fullName, setFullName] = useState("");
   const [avatarPreview, setAvatarPreview] = useState(null);
-  
+
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  
+
   // Stats & Lessons state
   const [allMyLessons, setAllMyLessons] = useState([]);
   const [savedLessonsCount, setSavedLessonsCount] = useState(0);
@@ -50,11 +52,12 @@ export default function ProfileSettings() {
     const fetchUserData = async () => {
       if (!user?.id) return;
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
-        
+        const backendUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
         const [myLessonsRes, savedLessonsRes] = await Promise.all([
           fetch(`${backendUrl}/api/my-lessons/${user.id}`),
-          fetch(`${backendUrl}/api/saved-lessons/${user.id}`)
+          fetch(`${backendUrl}/api/saved-lessons/${user.id}`),
         ]);
 
         if (myLessonsRes.ok) {
@@ -76,12 +79,14 @@ export default function ProfileSettings() {
     fetchUserData();
   }, [user?.id]);
 
-  const initial = fullName ? fullName.charAt(0).toUpperCase() : (user?.name?.charAt(0).toUpperCase() || '?');
+  const initial = fullName
+    ? fullName.charAt(0).toUpperCase()
+    : user?.name?.charAt(0).toUpperCase() || "?";
   const currentImage = avatarPreview !== null ? avatarPreview : user?.image;
 
   // Filter only public lessons created by this user, sorted newest first
   const publicLessons = allMyLessons
-    .filter(lesson => lesson.visibility === 'Public')
+    .filter((lesson) => lesson.visibility === "Public")
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   // 1. Handle Automatic Picture Upload to ImgBB and Database
@@ -96,26 +101,30 @@ export default function ProfileSettings() {
     try {
       const formData = new FormData();
       formData.append("image", file);
-      
-      const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY; 
+
+      const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
       const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
         method: "POST",
         body: formData,
       });
-      
+
       const imgData = await res.json();
-      
+
       if (imgData.success) {
-        const uploadedImageUrl = imgData.data.url; 
-        
+        const uploadedImageUrl = imgData.data.url;
+
         const { error } = await authClient.updateUser({
-          image: uploadedImageUrl
+          image: uploadedImageUrl,
         });
 
         if (error) {
-          toast.error(error.message || "Failed to save picture to database.", { id: toastId });
+          toast.error(error.message || "Failed to save picture to database.", {
+            id: toastId,
+          });
         } else {
-          toast.success("Profile picture updated successfully!", { id: toastId });
+          toast.success("Profile picture updated successfully!", {
+            id: toastId,
+          });
         }
       } else {
         toast.error("Image upload to ImgBB failed.", { id: toastId });
@@ -134,11 +143,13 @@ export default function ProfileSettings() {
     const toastId = toast.loading("Removing profile picture...");
     try {
       const { error } = await authClient.updateUser({
-        image: ""
+        image: "",
       });
 
       if (error) {
-        toast.error(error.message || "Failed to remove picture.", { id: toastId });
+        toast.error(error.message || "Failed to remove picture.", {
+          id: toastId,
+        });
       } else {
         setAvatarPreview("");
         toast.success("Profile picture removed.", { id: toastId });
@@ -158,14 +169,16 @@ export default function ProfileSettings() {
 
     setIsSaving(true);
     const toastId = toast.loading("Saving changes...");
-    
+
     try {
       const { error } = await authClient.updateUser({
-        name: fullName
+        name: fullName,
       });
 
       if (error) {
-        toast.error(error.message || "Failed to update profile details.", { id: toastId });
+        toast.error(error.message || "Failed to update profile details.", {
+          id: toastId,
+        });
       } else {
         toast.success("Display name updated successfully!", { id: toastId });
       }
@@ -185,22 +198,29 @@ export default function ProfileSettings() {
     });
   };
 
+  if (isLoadingLessons) {
+    return (
+      <div className="w-full min-h-[60vh] flex items-center justify-center">
+        <Spinner size="lg" color="current" className="text-[#0f766e]" />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col gap-10 font-sans pb-16">
-      
       {/* Header Section */}
       <div>
         <h1 className="text-3xl font-extrabold text-[#1a202c] dark:text-white tracking-tight">
           Profile Settings
         </h1>
         <p className="text-[15px] text-zinc-600 dark:text-zinc-400 mt-1">
-          Manage your personal details, view account credentials, and inspect your published contributions.
+          Manage your personal details, view account credentials, and inspect
+          your published contributions.
         </p>
       </div>
 
       {/* Main Profile & Settings Card */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-sm flex flex-col gap-8">
-        
         {/* Top Profile Strip & Badges */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-zinc-100 dark:border-zinc-800 gap-4">
           <div className="flex items-center gap-3">
@@ -209,7 +229,8 @@ export default function ProfileSettings() {
             </h2>
             {isPremiumUser ? (
               <span className="inline-flex items-center gap-1.5 text-[12px] font-extrabold px-3.5 py-1.5 rounded-full bg-[#d9fffb] text-[#149788]  border border-amber-200/60 dark:border-amber-500/20 shadow-xs">
-                <Star className="w-3.5 h-3.5 fill-[#149788] text-[#149788]" /> Premium
+                <Star className="w-3.5 h-3.5 fill-[#149788] text-[#149788]" />{" "}
+                Premium
               </span>
             ) : (
               <span className="inline-flex items-center text-[12px] font-semibold px-3 py-1 rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
@@ -235,17 +256,17 @@ export default function ProfileSettings() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="relative">
             {currentImage ? (
-              <img 
-                src={currentImage} 
-                alt="Profile Avatar" 
-                className={`w-24 h-24 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700 shadow-sm transition-opacity ${isUploadingImage ? 'opacity-40' : 'opacity-100'}`}
+              <img
+                src={currentImage}
+                alt="Profile Avatar"
+                className={`w-24 h-24 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700 shadow-sm transition-opacity ${isUploadingImage ? "opacity-40" : "opacity-100"}`}
               />
             ) : (
               <div className="w-24 h-24 rounded-full flex items-center justify-center bg-[#0f766e] text-white text-3xl font-extrabold border-2 border-zinc-200 dark:border-zinc-700 shadow-sm">
                 {initial}
               </div>
             )}
-            
+
             {isUploadingImage && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <Spinner size="md" color="current" className="text-[#0f766e]" />
@@ -254,16 +275,16 @@ export default function ProfileSettings() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <input 
-              type="file" 
+            <input
+              type="file"
               accept="image/*"
-              className="hidden" 
+              className="hidden"
               ref={fileInputRef}
               onChange={handleImageChange}
             />
-            
+
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingImage}
@@ -273,7 +294,7 @@ export default function ProfileSettings() {
               </button>
 
               {currentImage && (
-                <button 
+                <button
                   type="button"
                   onClick={handleRemovePicture}
                   disabled={isUploadingImage}
@@ -291,16 +312,14 @@ export default function ProfileSettings() {
 
         {/* Profile Inputs Form */}
         <form onSubmit={handleSaveDetails} className="flex flex-col gap-6">
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
             {/* Display Name (Editable) */}
             <div className="flex flex-col gap-2">
               <label className="text-[13px] font-bold text-zinc-700 dark:text-zinc-200 flex items-center gap-2">
                 <UserIcon className="w-4 h-4 text-zinc-400" /> Display Name
               </label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Enter your name"
@@ -319,14 +338,13 @@ export default function ProfileSettings() {
                   Read-only
                 </span>
               </div>
-              <input 
-                type="email" 
+              <input
+                type="email"
                 value={user?.email || ""}
                 disabled
                 className="w-full bg-zinc-100/70 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800/80 rounded-xl px-4 py-3 text-[14px] text-zinc-500 dark:text-zinc-400 outline-none cursor-not-allowed select-none"
               />
             </div>
-
           </div>
 
           {/* Submit Button */}
@@ -339,14 +357,11 @@ export default function ProfileSettings() {
               {isSaving ? <Spinner size="sm" color="white" /> : "Save Changes"}
             </button>
           </div>
-
         </form>
-
       </div>
 
       {/* Published Public Lessons Section */}
       <div className="flex flex-col gap-6">
-        
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">
@@ -357,10 +372,12 @@ export default function ProfileSettings() {
             </p>
           </div>
 
-          <Link href="/dashboard/user/add-lesson">
-            <Button className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold text-[13px] px-4 py-2 rounded-xl transition-colors shadow-sm cursor-pointer">
-              + New Lesson
-            </Button>
+          <Link
+            href="/dashboard/user/add-lesson"
+            className="bg-[#147062] hover:bg-[#0f594e] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm inline-flex items-center gap-2 w-fit cursor-pointer text-[14px]"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Create Lesson</span>
           </Link>
         </div>
 
@@ -410,7 +427,8 @@ export default function ProfileSettings() {
                         {lesson.category || "General"}
                       </span>
                       <span className="text-[12px] text-zinc-400 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" /> {formatDate(lesson.createdAt)}
+                        <Clock className="w-3.5 h-3.5" />{" "}
+                        {formatDate(lesson.createdAt)}
                       </span>
                     </div>
 
@@ -427,16 +445,15 @@ export default function ProfileSettings() {
                 {/* Card Footer */}
                 <div className="px-5 py-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
                   <span className="text-[12px] font-medium text-zinc-500">
-                    {lesson.likesCount || 0} Likes • {lesson.savedBy?.length || 0} Saves
+                    {lesson.likesCount || 0} Likes •{" "}
+                    {lesson.savedBy?.length || 0} Saves
                   </span>
 
-                  <Link href={`/lessons/${lesson._id}`}>
-                    <Button
-                      size="sm"
-                      className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold rounded-xl text-[12px] flex items-center gap-1 cursor-pointer"
-                    >
-                      View <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
+                  <Link
+                    className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold rounded-xl text-[12px] flex items-center gap-1 cursor-pointer px-3 py-1.5 transition-colors"
+                    href={`/lessons/${lesson._id}`}
+                  >
+                    View <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
               </div>
@@ -451,7 +468,8 @@ export default function ProfileSettings() {
               No Public Lessons Yet
             </h3>
             <p className="text-[14px] text-zinc-500 dark:text-zinc-400 max-w-sm mb-6">
-              You haven't published any public modules yet. Create a lesson to share your knowledge with the platform.
+              You haven't published any public modules yet. Create a lesson to
+              share your knowledge with the platform.
             </p>
             <Link href="/dashboard/user/add-lesson">
               <Button className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold px-5 py-2 rounded-xl transition-colors shadow-sm cursor-pointer">
@@ -460,9 +478,7 @@ export default function ProfileSettings() {
             </Link>
           </div>
         )}
-
       </div>
-
     </div>
   );
 }

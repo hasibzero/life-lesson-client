@@ -3,17 +3,17 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
-import { 
-  Search, 
-  Filter, 
-  Trash2, 
-  Eye, 
-  Compass, 
-  Bookmark, 
-  Lock, 
-  ChevronLeft, 
+import {
+  Search,
+  Filter,
+  Trash2,
+  Eye,
+  Compass,
+  Bookmark,
+  Lock,
+  ChevronLeft,
   ChevronRight,
-  Smile
+  Smile,
 } from "lucide-react";
 import { Spinner, Button } from "@heroui/react";
 import toast from "react-hot-toast";
@@ -34,14 +34,17 @@ export default function SavedLessonsTablePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 7;
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   // Fetch Saved Lessons
   const fetchSavedLessons = async () => {
     if (!user?.id) return;
 
     try {
-      const response = await fetch(`${backendUrl}/api/saved-lessons/${user.id}`);
+      const response = await fetch(
+        `${backendUrl}/api/saved-lessons/${user.id}`,
+      );
       if (response.ok) {
         const data = await response.json();
         setSavedLessons(data);
@@ -63,15 +66,20 @@ export default function SavedLessonsTablePage() {
   // Remove from Favorites Action
   const handleRemoveBookmark = async (lessonId) => {
     try {
-      const response = await fetch(`${backendUrl}/api/lessons/${lessonId}/bookmark`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user?.id }),
-      });
+      const response = await fetch(
+        `${backendUrl}/api/lessons/${lessonId}/bookmark`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user?.id }),
+        },
+      );
 
       if (response.ok) {
         toast.success("Removed from saved favorites.");
-        setSavedLessons((prev) => prev.filter((lesson) => lesson._id !== lessonId));
+        setSavedLessons((prev) =>
+          prev.filter((lesson) => lesson._id !== lessonId),
+        );
       } else {
         toast.error("Failed to remove bookmark.");
       }
@@ -109,7 +117,10 @@ export default function SavedLessonsTablePage() {
   const totalPages = Math.ceil(filteredLessons.length / itemsPerPage) || 1;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentLessons = filteredLessons.slice(indexOfFirstItem, indexOfLastItem);
+  const currentLessons = filteredLessons.slice(
+    indexOfFirstItem,
+    indexOfLastItem,
+  );
 
   if (isLoading) {
     return (
@@ -121,7 +132,6 @@ export default function SavedLessonsTablePage() {
 
   return (
     <div className="w-full flex flex-col gap-8 font-sans pb-12">
-      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -133,16 +143,17 @@ export default function SavedLessonsTablePage() {
           </p>
         </div>
 
-        <Link href="/lessons">
-          <Button className="bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm flex items-center gap-2 w-fit cursor-pointer">
-            <Compass className="w-4 h-4" /> Explore More Lessons
-          </Button>
+        <Link
+          href="/lessons"
+          className="bg-[#147062] hover:bg-[#0f594e] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm inline-flex items-center gap-2 w-fit cursor-pointer text-[14px]"
+        >
+          <Compass className="w-4 h-4" />
+          <span>Explore More Lessons</span>
         </Link>
       </div>
 
       {/* Search & Filters Bar */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col lg:flex-row items-center gap-4">
-        
         {/* Search Input */}
         <div className="relative flex-1 w-full flex items-center">
           <Search className="absolute left-4 w-4 h-4 text-zinc-400" />
@@ -196,7 +207,9 @@ export default function SavedLessonsTablePage() {
         </div>
 
         {/* Reset Button */}
-        {(searchQuery || selectedCategory !== "All" || selectedTone !== "All") && (
+        {(searchQuery ||
+          selectedCategory !== "All" ||
+          selectedTone !== "All") && (
           <button
             onClick={() => {
               setSearchQuery("");
@@ -227,8 +240,10 @@ export default function SavedLessonsTablePage() {
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-[14px]">
               {currentLessons.map((lesson) => (
-                <tr key={lesson._id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors">
-                  
+                <tr
+                  key={lesson._id}
+                  className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors"
+                >
                   {/* Title & Premium Indicator */}
                   <td className="py-4 px-6 font-bold text-zinc-900 dark:text-white">
                     <div className="flex flex-col">
@@ -269,7 +284,6 @@ export default function SavedLessonsTablePage() {
                   {/* Actions */}
                   <td className="py-4 px-6 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-2">
-                      
                       {/* Lesson Details Button wrapped in Next.js Link */}
                       <Link href={`/lessons/${lesson._id}`}>
                         <Button
@@ -288,10 +302,8 @@ export default function SavedLessonsTablePage() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-
                     </div>
                   </td>
-
                 </tr>
               ))}
 
@@ -300,9 +312,13 @@ export default function SavedLessonsTablePage() {
                   <td colSpan={6} className="py-12 text-center text-zinc-500">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Bookmark className="w-8 h-8 text-zinc-400" />
-                      <p className="font-semibold text-zinc-700 dark:text-zinc-300">No saved favorites found</p>
+                      <p className="font-semibold text-zinc-700 dark:text-zinc-300">
+                        No saved favorites found
+                      </p>
                       <p className="text-[13px] text-zinc-500">
-                        {searchQuery || selectedCategory !== "All" || selectedTone !== "All"
+                        {searchQuery ||
+                        selectedCategory !== "All" ||
+                        selectedTone !== "All"
                           ? "Try clearing filters to find what you are looking for."
                           : "Explore lessons to save insightful modules to your favorites."}
                       </p>
@@ -318,7 +334,8 @@ export default function SavedLessonsTablePage() {
         <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-[14px] text-zinc-500">
             Showing {filteredLessons.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
-            {Math.min(indexOfLastItem, filteredLessons.length)} of {filteredLessons.length} results
+            {Math.min(indexOfLastItem, filteredLessons.length)} of{" "}
+            {filteredLessons.length} results
           </span>
 
           {totalPages > 1 && (
@@ -331,22 +348,26 @@ export default function SavedLessonsTablePage() {
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-9 h-9 rounded-lg font-semibold text-[14px] flex items-center justify-center transition-colors cursor-pointer ${
-                    currentPage === page
-                      ? "bg-[#0f766e] text-white shadow-sm"
-                      : "border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-9 h-9 rounded-lg font-semibold text-[14px] flex items-center justify-center transition-colors cursor-pointer ${
+                      currentPage === page
+                        ? "bg-[#0f766e] text-white shadow-sm"
+                        : "border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ),
+              )}
 
               <button
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
                 disabled={currentPage === totalPages}
                 className="w-9 h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
@@ -356,7 +377,6 @@ export default function SavedLessonsTablePage() {
           )}
         </div>
       </div>
-
     </div>
   );
 }

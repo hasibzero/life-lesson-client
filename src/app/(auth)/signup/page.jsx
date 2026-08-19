@@ -3,11 +3,11 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Button, TextField, Label, InputGroup, Input } from "@heroui/react";
 import { useForm } from "react-hook-form";
 import { authClient } from "@/lib/auth-client";
-import toast from "react-hot-toast"; // Imported react-hot-toast
-import { redirect } from "next/navigation";
+import toast from "react-hot-toast";
 
 // === Reusable SVGs ===
 
@@ -127,6 +127,7 @@ const ArrowRightIcon = () => (
 );
 
 export default function SignUp() {
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -141,25 +142,24 @@ export default function SignUp() {
   const password = watch("password");
 
   const onSubmit = async (data) => {
-    // Initiate loading toast
     const toastId = toast.loading("Creating your account...");
     let uploadedImageUrl = "";
 
-    // 1. If an image is selected, upload it to ImgBB FIRST
+    // 1. Upload image if selected
     if (data.avatar && data.avatar.length > 0) {
       const formData = new FormData();
       formData.append("image", data.avatar[0]);
 
       try {
-        const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY; 
+        const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
         const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
           method: "POST",
           body: formData,
         });
-        
+
         const imgData = await res.json();
         if (imgData.success) {
-          uploadedImageUrl = imgData.data.url; 
+          uploadedImageUrl = imgData.data.url;
         } else {
           toast.error("Image upload failed.", { id: toastId });
           return;
@@ -171,26 +171,23 @@ export default function SignUp() {
       }
     }
 
-    // 2. Remove the raw file object from the data payload so it doesn't break authClient
+    // 2. Format sanitized payload
     const { avatar, confirmPassword, terms, ...cleanData } = data;
 
-    // 3. Send the clean data to your authClient, keeping your exact structure!
-    const { data: signUpData, error } = await authClient.signUp.email({
+    // 3. Register user with authClient
+    const { error } = await authClient.signUp.email({
       ...cleanData,
       image: uploadedImageUrl,
-
     });
 
     if (error) {
-      // Update toast to error state with message from authClient
-      toast.error(error.message || "Failed to create account. Please try again.", { id: toastId });
+      toast.error(error.message || "Failed to create account. Please try again.", {
+        id: toastId,
+      });
       console.log("Sign up error:", error);
     } else {
-      // Update toast to success state
       toast.success("Account created successfully!", { id: toastId });
-      console.log("Sign up successful:", signUpData);
-
-      redirect("/signin"); // Redirect to sign-in page after successful sign-upaaaaaaaaaaa
+      router.push("/signin");
     }
   };
 
@@ -222,6 +219,7 @@ export default function SignUp() {
             className="flex flex-col gap-4"
             onSubmit={handleSubmit(onSubmit)}
           >
+            {/* Avatar Upload */}
             <div className="flex flex-col items-center justify-center mb-4">
               <div className="relative cursor-pointer group">
                 <input
@@ -263,6 +261,7 @@ export default function SignUp() {
               </span>
             </div>
 
+            {/* Name Input */}
             <TextField className="flex flex-col gap-1.5">
               <Label className="text-[13px] font-bold text-[#1a202c] dark:text-zinc-100">
                 Full Name
@@ -280,6 +279,7 @@ export default function SignUp() {
               )}
             </TextField>
 
+            {/* Email Input */}
             <TextField className="flex flex-col gap-1.5">
               <Label className="text-[13px] font-bold text-[#1a202c] dark:text-zinc-100">
                 Email Address
@@ -303,6 +303,7 @@ export default function SignUp() {
               )}
             </TextField>
 
+            {/* Password Input with Strict Validation */}
             <TextField className="flex flex-col gap-1.5">
               <Label className="text-[13px] font-bold text-[#1a202c] dark:text-zinc-100">
                 Password
@@ -319,6 +320,14 @@ export default function SignUp() {
                     minLength: {
                       value: 6,
                       message: "Password must be at least 6 characters",
+                    },
+                    validate: {
+                      hasUppercase: (value) =>
+                        /[A-Z]/.test(value) ||
+                        "Password must contain at least one uppercase letter",
+                      hasLowercase: (value) =>
+                        /[a-z]/.test(value) ||
+                        "Password must contain at least one lowercase letter",
                     },
                   })}
                 />
@@ -342,6 +351,7 @@ export default function SignUp() {
               )}
             </TextField>
 
+            {/* Confirm Password Input */}
             <TextField className="flex flex-col gap-1.5">
               <Label className="text-[13px] font-bold text-[#1a202c] dark:text-zinc-100">
                 Confirm Password
@@ -379,6 +389,7 @@ export default function SignUp() {
               )}
             </TextField>
 
+            {/* Terms & Conditions Checkbox */}
             <div className="flex flex-col gap-1 mt-2">
               <div className="flex items-start gap-2">
                 <input
@@ -419,7 +430,7 @@ export default function SignUp() {
 
             <Button
               type="submit"
-              className="w-full flex items-center justify-center bg-[#16A696] hover:bg-[#0f8c7e] text-white font-semibold text-[14px] py-2.5 mt-2 rounded-md transition-colors"
+              className="w-full flex items-center justify-center bg-[#16A696] hover:bg-[#0f8c7e] text-white font-semibold text-[14px] py-2.5 mt-2 rounded-md transition-colors cursor-pointer"
             >
               Sign Up <ArrowRightIcon />
             </Button>
@@ -431,7 +442,7 @@ export default function SignUp() {
             <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
           </div>
 
-          <Button className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-300 dark:border-zinc-700 text-[#1a202c] dark:text-white font-semibold text-[14px] py-2.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+          <Button className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-300 dark:border-zinc-700 text-[#1a202c] dark:text-white font-semibold text-[14px] py-2.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
             <GoogleIcon />
             Continue with Google
           </Button>
