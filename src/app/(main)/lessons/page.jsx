@@ -28,27 +28,39 @@ const LockIcon = () => (
 export default function BrowseLessonsPage() {
   const { data: session } = authClient.useSession();
   const user = session?.user;
-  const isPremiumUser = user?.role === "admin" || user?.plan === "premium";
+  const isPremiumUser =
+    user?.role === "admin" || user?.plan === "premium" || user?.isPremium;
 
   const [lessons, setLessons] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Filter States
-const searchParams = useSearchParams();
+  const searchParams = useSearchParams();
   const pathname = usePathname();
 
   // Initialize state directly from URL query params (if any)
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
-  const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") || "");
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "All");
-  const [selectedTone, setSelectedTone] = useState(searchParams.get("emotionalTone") || "All");
-  const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1", 10));
+  const [searchQuery, setSearchQuery] = useState(
+    searchParams.get("search") || "",
+  );
+  const [debouncedSearch, setDebouncedSearch] = useState(
+    searchParams.get("search") || "",
+  );
+  const [selectedCategory, setSelectedCategory] = useState(
+    searchParams.get("category") || "All",
+  );
+  const [selectedTone, setSelectedTone] = useState(
+    searchParams.get("emotionalTone") || "All",
+  );
+  const [currentPage, setCurrentPage] = useState(
+    parseInt(searchParams.get("page") || "1", 10),
+  );
   const [totalPages, setTotalPages] = useState(1);
   const limitPerPage = 8;
 
   const backendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+  // Debounce search query input (300ms)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -57,6 +69,7 @@ const searchParams = useSearchParams();
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Sync to Address Bar without page reload
   useEffect(() => {
     const params = new URLSearchParams();
 
@@ -71,6 +84,7 @@ const searchParams = useSearchParams();
     window.history.replaceState(null, "", newUrl);
   }, [debouncedSearch, selectedCategory, selectedTone, currentPage, pathname]);
 
+  // Query-based fetch calling your backend
   useEffect(() => {
     const fetchLessons = async () => {
       setIsLoading(true);
@@ -88,10 +102,10 @@ const searchParams = useSearchParams();
         const response = await fetch(
           `${backendUrl}/api/lessons?${queryParams.toString()}`,
         );
+
         if (response.ok) {
           const result = await response.json();
 
-          // Handles both paginated response object and flat array
           if (result && Array.isArray(result.data)) {
             setLessons(result.data);
             setTotalPages(result.totalPages || 1);
@@ -120,6 +134,7 @@ const searchParams = useSearchParams();
     selectedCategory,
     selectedTone,
     currentPage,
+    limitPerPage,
   ]);
 
   const formatDate = (dateString) => {
@@ -127,38 +142,6 @@ const searchParams = useSearchParams();
     const options = { year: "numeric", month: "short", day: "2-digit" };
     return new Date(dateString).toLocaleDateString("en-US", options);
   };
-
-  // // Only include approved/reviewed lessons
-  // const approvedLessons = lessons.filter((lesson) => lesson?.isReviewed === true);
-
-  // // Filter Logic
-  // const filteredLessons = approvedLessons.filter((lesson) => {
-  //   const matchesSearch =
-  //     lesson.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //     lesson.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //     lesson.creatorName?.toLowerCase().includes(searchQuery.toLowerCase());
-
-  //   const matchesCategory =
-  //     selectedCategory === "All" || lesson.category === selectedCategory;
-  //   const matchesTone =
-  //     selectedTone === "All" || lesson.emotionalTone === selectedTone;
-
-  //   return matchesSearch && matchesCategory && matchesTone;
-  // });
-
-  // // Pagination Logic
-  // const totalPages = Math.ceil(filteredLessons.length / lessonsPerPage) || 1;
-  // const indexOfLastLesson = currentPage * lessonsPerPage;
-  // const indexOfFirstLesson = indexOfLastLesson - lessonsPerPage;
-  // const currentLessons = filteredLessons.slice(indexOfFirstLesson, indexOfLastLesson);
-
-  // if (isLoading) {
-  //   return (
-  //     <div className="w-full min-h-screen flex items-center justify-center dark:bg-[#09090b]">
-  //       <Spinner size="lg" color="current" className="text-[#149788]" />
-  //     </div>
-  //   );
-  // }
 
   return (
     <div className="w-full min-h-screen text-black dark:text-white py-12 px-4 sm:px-8 lg:px-16 font-sans">
@@ -226,115 +209,7 @@ const searchParams = useSearchParams();
         </div>
       </div>
 
-      {/* Lessons Grid matching LessonsCard structure */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        {lessons.map((lesson) => {
-          const isLocked = lesson?.accessLevel === "Premium" && !isPremiumUser;
-
-          return (
-            <Card
-              key={lesson?._id}
-              className="relative h-full w-full shadow-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between"
-            >
-              {/* Premium Lock Overlay */}
-              {isLocked && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-sm rounded-xl">
-                  <div className="w-14 h-14 bg-white dark:bg-zinc-900 rounded-full flex items-center justify-center shadow-sm border border-zinc-200 dark:border-zinc-800 mb-4">
-                    <LockIcon />
-                  </div>
-                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-1">
-                    Premium Lesson
-                  </h3>
-                  <p className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 mb-6 text-center">
-                    {user
-                      ? "Upgrade to view this content"
-                      : "Sign in & upgrade to view"}
-                  </p>
-                  <Button
-                    as={Link}
-                    href={user ? "/pricing" : "/signin"}
-                    radius="sm"
-                    className="w-full font-semibold text-white shadow-md cursor-pointer"
-                    style={{ backgroundColor: "#9c5236" }}
-                  >
-                    {user ? "Upgrade Now" : "Sign In"}
-                  </Button>
-                </div>
-              )}
-
-              {/* Card Header */}
-              <div className="flex justify-between items-start pt-5 px-5">
-                <div className="flex flex-wrap gap-2">
-                  <Chip
-                    size="sm"
-                    radius="sm"
-                    className="bg-[#f0f4fa] text-[#4b5563] dark:bg-zinc-800 dark:text-zinc-300 border-none font-medium"
-                  >
-                    {lesson?.category || "General"}
-                  </Chip>
-                  <Chip
-                    size="sm"
-                    radius="sm"
-                    className="bg-[#6366f1] text-white border-none font-medium"
-                  >
-                    {lesson?.emotionalTone || "Motivational"}
-                  </Chip>
-                </div>
-                <Chip
-                  size="sm"
-                  radius="sm"
-                  className="bg-[#f0f4fa] text-[#4b5563] dark:bg-zinc-800 dark:text-zinc-400 font-medium"
-                >
-                  {lesson?.accessLevel || "Free"}
-                </Chip>
-              </div>
-
-              {/* Card Body */}
-              <div className="px-5 py-3 flex-grow flex flex-col justify-between">
-                <div>
-                  <h4 className="text-[18px] font-bold text-[#1a202c] dark:text-white mb-2 leading-tight line-clamp-2">
-                    {lesson?.title}
-                  </h4>
-                  <p className="text-[14px] text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-6">
-                    {lesson?.description}
-                  </p>
-                </div>
-
-                <div className="mt-auto flex items-center gap-3">
-                  <img
-                    src={
-                      lesson?.creatorAvatar ||
-                      `https://ui-avatars.com/api/?name=${lesson.creatorName || "User"}&background=random`
-                    }
-                    alt="Creator"
-                    className="w-9 h-9 rounded-full object-cover border border-zinc-200 dark:border-zinc-700 shrink-0"
-                  />
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-bold text-[#1a202c] dark:text-white leading-none mb-1 truncate">
-                      {lesson?.creatorName || "Anonymous"}
-                    </span>
-                    <span className="text-[12px] text-zinc-500 font-medium leading-none">
-                      {formatDate(lesson?.createdAt)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card Footer */}
-              {/* Card Footer */}
-              <div className="px-5 pb-5 pt-3">
-                <Link
-                  href={`/lessons/${lesson?._id}`}
-                  className="w-full py-2 text-center font-semibold rounded-sm border-2 border-[#149788] text-[#149788] hover:bg-[#149788] hover:text-white transition-colors block text-sm cursor-pointer"
-                >
-                  See Details
-                </Link>
-              </div>
-            </Card>
-          );
-        })}
-
-        {/* Lessons Grid Container */}
+      {/* Main Grid Area */}
       <div className="max-w-7xl mx-auto mb-12">
         {isLoading ? (
           <div className="w-full min-h-[350px] flex items-center justify-center">
@@ -342,25 +217,121 @@ const searchParams = useSearchParams();
           </div>
         ) : lessons.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {lessons.map((lesson) => (
-              <Card
-                key={lesson?._id}
-                className="relative h-full w-full shadow-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between"
-              >
-                {/* ... Card Content ... */}
-              </Card>
-            ))}
+            {lessons.map((lesson) => {
+              const isLocked =
+                lesson?.accessLevel === "Premium" && !isPremiumUser;
+
+              return (
+                <Card
+                  key={lesson?._id}
+                  className="relative h-full w-full shadow-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between"
+                >
+                  {/* Premium Lock Overlay */}
+                  {isLocked && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-sm rounded-xl">
+                      <div className="w-14 h-14 bg-white dark:bg-zinc-900 rounded-full flex items-center justify-center shadow-sm border border-zinc-200 dark:border-zinc-800 mb-4">
+                        <LockIcon />
+                      </div>
+                      <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-1">
+                        Premium Lesson
+                      </h3>
+                      <p className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 mb-6 text-center">
+                        {user
+                          ? "Upgrade to view this content"
+                          : "Sign in & upgrade to view"}
+                      </p>
+                      <Link
+                        href={user ? "/pricing" : "/signin"}
+                        className="w-full py-2.5 px-4 text-center font-semibold text-white rounded-sm shadow-md transition-opacity hover:opacity-90 block cursor-pointer text-sm"
+                        style={{ backgroundColor: "#9c5236" }}
+                      >
+                        {user ? "Upgrade Now" : "Sign In"}
+                      </Link>
+                    </div>
+                  )}
+
+                  {/* Card Header */}
+                  <div className="flex justify-between items-start pt-5 px-5">
+                    <div className="flex flex-wrap gap-2">
+                      <Chip
+                        size="sm"
+                        radius="sm"
+                        className="bg-[#f0f4fa] text-[#4b5563] dark:bg-zinc-800 dark:text-zinc-300 border-none font-medium"
+                      >
+                        {lesson?.category || "General"}
+                      </Chip>
+                      <Chip
+                        size="sm"
+                        radius="sm"
+                        className="bg-[#6366f1] text-white border-none font-medium"
+                      >
+                        {lesson?.emotionalTone || "Motivational"}
+                      </Chip>
+                    </div>
+                    <Chip
+                      size="sm"
+                      radius="sm"
+                      className="bg-[#f0f4fa] text-[#4b5563] dark:bg-zinc-800 dark:text-zinc-400 font-medium"
+                    >
+                      {lesson?.accessLevel || "Free"}
+                    </Chip>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="px-5 py-3 flex-grow flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-[18px] font-bold text-[#1a202c] dark:text-white mb-2 leading-tight line-clamp-2">
+                        {lesson?.title}
+                      </h4>
+                      <p className="text-[14px] text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-6">
+                        {lesson?.description}
+                      </p>
+                    </div>
+
+                    <div className="mt-auto flex items-center gap-3">
+                      <img
+                        src={
+                          lesson?.creatorAvatar ||
+                          `https://ui-avatars.com/api/?name=${encodeURIComponent(lesson?.creatorName || "User")}&background=random`
+                        }
+                        alt="Creator"
+                        className="w-9 h-9 rounded-full object-cover border border-zinc-200 dark:border-zinc-700 shrink-0"
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[13px] font-bold text-[#1a202c] dark:text-white leading-none mb-1 truncate">
+                          {lesson?.creatorName || "Anonymous"}
+                        </span>
+                        <span className="text-[12px] text-zinc-500 font-medium leading-none">
+                          {formatDate(lesson?.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Footer */}
+                  <div className="px-5 pb-5 pt-3">
+                    <Link
+                      href={`/lessons/${lesson?._id}`}
+                      className="w-full py-2 text-center font-semibold rounded-sm border-2 border-[#149788] text-[#149788] hover:bg-[#149788] hover:text-white transition-colors block text-sm cursor-pointer"
+                    >
+                      See Details
+                    </Link>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <div className="py-20 text-center text-zinc-500">
-            <p className="text-lg font-medium">No lessons found matching your filters.</p>
+            <p className="text-lg font-medium">
+              No lessons found matching your filters.
+            </p>
           </div>
         )}
       </div>
-      </div>
 
       {/* Pagination Controls */}
-      {totalPages > 1 && (
+      {!isLoading && totalPages > 1 && (
         <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 pb-12">
           <button
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}

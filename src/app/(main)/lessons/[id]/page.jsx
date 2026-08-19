@@ -13,13 +13,13 @@ import {
   Flag,
   Globe,
   Heart,
-  Link as LinkIcon,
   MessageSquare,
   RefreshCw,
   Send,
   X,
   Lock,
   Check,
+  Share2,
 } from "lucide-react";
 import { Spinner, Button, Chip } from "@heroui/react";
 import toast from "react-hot-toast";
@@ -191,7 +191,7 @@ export default function LessonDetail() {
         setLikesCount(previousLikesCount);
         toast.error("Failed to update like status.");
       }
-    } catch (error) {
+    } catch {
       setIsLiked(previousIsLiked);
       setLikesCount(previousLikesCount);
       toast.error("An error occurred while liking.");
@@ -241,7 +241,7 @@ export default function LessonDetail() {
         setBookmarksCount(previousBookmarksCount);
         toast.error("Failed to update favorite.");
       }
-    } catch (error) {
+    } catch {
       setIsBookmarked(previousIsBookmarked);
       setBookmarksCount(previousBookmarksCount);
       toast.error("An error occurred.");
@@ -329,19 +329,66 @@ export default function LessonDetail() {
       } else {
         toast.error("Failed to post comment.");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred while posting comment.");
     } finally {
       setIsSubmittingComment(false);
     }
   };
 
-  const handleCopyLink = () => {
-    if (typeof window !== "undefined") {
-      navigator.clipboard.writeText(window.location.href);
+  // Cross-device Share & Copy Handler
+  const handleShareOrCopy = async () => {
+    if (typeof window === "undefined") return;
+
+    const shareUrl = window.location.href;
+    const shareData = {
+      title: lesson?.title || "Digital Life Lesson",
+      text: lesson?.description
+        ? `${lesson.description.slice(0, 90)}...`
+        : "Check out this wisdom lesson!",
+      url: shareUrl,
+    };
+
+    // 1. Mobile Native Share Sheet (iOS Safari, Android Chrome, etc.)
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.error("Native share failed, falling back to copy:", error);
+        } else {
+          return;
+        }
+      }
+    }
+
+    // 2. Modern Clipboard API (Desktop & Supported Browsers)
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        // 3. Fallback for In-App Browsers / WebViews
+        const textArea = document.createElement("textarea");
+        textArea.value = shareUrl;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand("copy");
+        document.body.removeChild(textArea);
+
+        if (!successful) throw new Error("Fallback copy failed");
+      }
+
       setCopiedLink(true);
       toast.success("Link copied to clipboard!");
       setTimeout(() => setCopiedLink(false), 2000);
+    } catch (err) {
+      console.error("Clipboard error:", err);
+      toast.error("Failed to copy link. Please copy the URL manually.");
     }
   };
 
@@ -414,7 +461,7 @@ export default function LessonDetail() {
           </div>
         </div>
 
-        {/* 1. Featured Cover Image (Blurred and Locked for Non-Premium) */}
+        {/* 1. Featured Cover Image */}
         {lesson.coverImage && (
           <div className="w-full h-[280px] sm:h-[400px] rounded-3xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-800 relative bg-zinc-100 dark:bg-zinc-900">
             <img
@@ -601,9 +648,9 @@ export default function LessonDetail() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleCopyLink}
-              title="Copy Link"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold transition-colors cursor-pointer border border-zinc-200 dark:border-zinc-700"
+              onClick={handleShareOrCopy}
+              title="Share or Copy Link"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold transition-colors cursor-pointer border border-zinc-200 dark:border-zinc-700"
             >
               {copiedLink ? (
                 <>
@@ -612,8 +659,8 @@ export default function LessonDetail() {
                 </>
               ) : (
                 <>
-                  <LinkIcon className="w-3.5 h-3.5 text-zinc-500" />
-                  <span>Copy Link</span>
+                  <Share2 className="w-3.5 h-3.5 text-zinc-500" />
+                  <span>Share</span>
                 </>
               )}
             </button>
@@ -712,16 +759,16 @@ export default function LessonDetail() {
           </Link>
 
           <Button
+            as={Link}
+            href={authorProfileHref}
             variant="bordered"
             className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold rounded-xl text-[13px] hover:border-[#0f766e] hover:text-[#0f766e] transition-colors cursor-pointer"
           >
-            <Link href={authorProfileHref}>
-              View all lessons by this author
-            </Link>
+            View all lessons by this author
           </Button>
         </div>
 
-        {/* 8. Comment & Discussion Section (Locked if Lesson is Premium) */}
+        {/* 8. Comment & Discussion Section */}
         <section className="flex flex-col gap-6 pt-4">
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">

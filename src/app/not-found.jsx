@@ -21,7 +21,7 @@ const HomeIcon = () => (
 
 export default function NotFound() {
   return (
-    <main className="min-h-[calc(100vh-6rem)] w-full flex flex-col items-center justify-center bg-[#f8fafc] dark:bg-zinc-950 px-6 py-16 text-center transition-colors duration-300">
+    <main className="min-h-screen w-full flex flex-col items-center justify-center bg-[#f8fafc] dark:bg-zinc-950 px-6 py-16 text-center transition-colors duration-300">
 
 
       {/* Main 404 Heading */}
@@ -56,7 +56,7 @@ export default function NotFound() {
 
         {/* Secondary Button: Return Home */}
         <Button 
-          variant="bordered"
+          
           radius="sm"
           className="w-full sm:w-auto border-[#0c6b5e] text-[#0c6b5e] dark:border-[#16A696] dark:text-[#16A696] hover:bg-[#0c6b5e]/10 dark:hover:bg-[#16A696]/10 font-semibold px-6 py-5 transition-colors bg-white dark:bg-transparent p-0"
         >
