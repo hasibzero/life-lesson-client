@@ -40,10 +40,17 @@ export default function SavedLessonsTablePage() {
   // Fetch Saved Lessons
   const fetchSavedLessons = async () => {
     if (!user?.id) return;
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+    
 
     try {
       const response = await fetch(
-        `${backendUrl}/api/saved-lessons/${user.id}`,
+        `${backendUrl}/api/saved-lessons/${user.id}`,{
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
       );
       if (response.ok) {
         const data = await response.json();

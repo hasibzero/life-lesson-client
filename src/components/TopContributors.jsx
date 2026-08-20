@@ -117,7 +117,7 @@ export const TopContributors = () => {
 
               return (
                 <motion.div
-                  key={contributor.userId || index}
+                  key={`${contributor.userId || 'contributor'}-${index}`}
                   variants={cardVariants}
                   whileHover={{ y: -6, transition: { duration: 0.2 } }}
                   className="h-full"

@@ -50,14 +50,27 @@ export default function ProfileSettings() {
   // Fetch User's Created Lessons and Saved Lessons
   useEffect(() => {
     const fetchUserData = async () => {
+
+      
       if (!user?.id) return;
+      const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+    
       try {
         const backendUrl =
           process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
         const [myLessonsRes, savedLessonsRes] = await Promise.all([
-          fetch(`${backendUrl}/api/my-lessons/${user.id}`),
-          fetch(`${backendUrl}/api/saved-lessons/${user.id}`),
+          fetch(`${backendUrl}/api/my-lessons/${user.id}`,{
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
+          fetch(`${backendUrl}/api/saved-lessons/${user.id}`,{
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
         ]);
 
         if (myLessonsRes.ok) {

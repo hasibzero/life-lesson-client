@@ -23,11 +23,15 @@ function SuccessReceipt() {
     const upgradeUserPlan = async () => {
       if (!sessionId || !user?.email || hasUpgraded.current) return;
       hasUpgraded.current = true;
-
+      const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+    
       try {
         const response = await fetch(`${backendUrl}/api/users/upgrade-plan`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json",
+            'Authorization': `Bearer ${token}`
+           },
           body: JSON.stringify({
             email: user.email,
             userId: user.id,

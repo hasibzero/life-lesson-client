@@ -37,12 +37,27 @@ export default function AdminOverviewPage() {
 
   useEffect(() => {
     const fetchAdminOverview = async () => {
+      const tokenRes = await authClient.token();
+      const token = tokenRes?.data?.token;
+          
       try {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
         const [statsRes, reportsRes, allLessonsRes] = await Promise.all([
-          fetch(`${backendUrl}/api/admin/stats`),
-          fetch(`${backendUrl}/api/admin/reports`),
-          fetch(`${backendUrl}/api/lessons`)
+          fetch(`${backendUrl}/api/admin/stats`,{
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
+          fetch(`${backendUrl}/api/admin/reports`,{
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
+          fetch(`${backendUrl}/api/lessons`,{
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
         ]);
 
         let statsData = {};
@@ -346,7 +361,7 @@ export default function AdminOverviewPage() {
               <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {analytics.activeContributors.map((author, index) => (
                   <div
-                    key={author.userId || index}
+                    key={`${author.userId || 'author'}-${index}`}
                     className="py-3.5 flex items-center justify-between gap-4 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 rounded-xl px-2 transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">

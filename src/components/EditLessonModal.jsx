@@ -54,7 +54,9 @@ export default function EditLessonModal({ isOpen, onClose, lesson, onUpdateSucce
     setIsUpdating(true);
     const toastId = toast.loading('Saving updates...');
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
-
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+    
     try {
       let finalImageUrl = lesson?.coverImage || '';
 
@@ -88,11 +90,14 @@ export default function EditLessonModal({ isOpen, onClose, lesson, onUpdateSucce
         coverImage: finalImageUrl,
         updatedAt: new Date(),
       };
+      
 
       // 3. Patch to MongoDB
       const response = await fetch(`${backendUrl}/api/update-lesson/${lesson._id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+         },
         body: JSON.stringify(updatePayload),
       });
 

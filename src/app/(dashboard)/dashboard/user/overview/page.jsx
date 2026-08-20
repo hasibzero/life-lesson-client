@@ -45,15 +45,25 @@ export default function OverviewPage() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user?.id) return;
-
+      const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+    
       try {
         const backendUrl =
           process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
         // Fetch user's created lessons and saved lessons in parallel
         const [lessonsRes, savedRes] = await Promise.all([
-          fetch(`${backendUrl}/api/my-lessons/${user.id}`),
-          fetch(`${backendUrl}/api/saved-lessons/${user.id}`),
+          fetch(`${backendUrl}/api/my-lessons/${user.id}`,{
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
+          fetch(`${backendUrl}/api/saved-lessons/${user.id}`,{
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
         ]);
 
         const lessonsData = lessonsRes.ok ? await lessonsRes.json() : [];

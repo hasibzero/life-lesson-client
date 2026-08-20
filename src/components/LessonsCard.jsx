@@ -36,7 +36,7 @@ export default function LessonsCard() {
       
       try {
         const backendUrl =
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+          process.env.NEXT_PUBLIC_BACKEND_URL ;
         const response = await fetch(`${backendUrl}/api/lessons/featured`);
 
         if (response.ok) {
@@ -81,10 +81,7 @@ export default function LessonsCard() {
         <p className="text-lg font-medium text-zinc-700 dark:text-zinc-300">
           No featured lessons available right now.
         </p>
-        <p className="text-sm text-zinc-400 mt-1">
-          Mark lessons as &quot;Featured&quot; and &quot;Reviewed&quot; from the
-          admin panel to display them here.
-        </p>
+        
       </div>
     );
   }
