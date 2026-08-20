@@ -46,10 +46,18 @@ export default function MyLessons() {
 
   useEffect(() => {
     const fetchMyLessons = async () => {
+      const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+    
       if (!user?.id) return;
 
       try {
-        const response = await fetch(`${backendUrl}/api/my-lessons/${user.id}`);
+        const response = await fetch(`${backendUrl}/api/my-lessons/${user.id}`,{
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+
+        });
         if (response.ok) {
           const data = await response.json();
           setLessons(data);

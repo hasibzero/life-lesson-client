@@ -86,7 +86,7 @@ export default function AddLesson() {
 
     const tokenRes = await authClient.token();
     const token = tokenRes?.data?.token;
-    console.log("User Token:", token);
+    // console.log("User Token:", token);
     let uploadedImageUrl = "";
 
     if (data.coverImage && data.coverImage.length > 0) {
