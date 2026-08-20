@@ -1,17 +1,58 @@
 "use client";
 
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 import { Check, ArrowRight, CreditCard, AlertCircle } from "lucide-react";
-import { Button, Spinner } from "@heroui/react";
+import { Spinner } from "@heroui/react";
+import toast from "react-hot-toast";
 
 function SuccessReceipt() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const sessionId = searchParams.get("session_id");
 
-  // 1. Guard: If someone visits /success manually without session_id
+  const { data: session, refetch } = authClient.useSession();
+  const user = session?.user;
+
+  const hasUpgraded = useRef(false); // Prevents duplicate calls in React Strict Mode
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+  useEffect(() => {
+    const upgradeUserPlan = async () => {
+      if (!sessionId || !user?.email || hasUpgraded.current) return;
+      hasUpgraded.current = true;
+
+      try {
+        const response = await fetch(`${backendUrl}/api/users/upgrade-plan`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.email,
+            userId: user.id,
+          }),
+        });
+
+        if (response.ok) {
+          // Refresh client-side auth session immediately
+          if (typeof refetch === "function") {
+            await refetch();
+          }
+          toast.success("Account successfully upgraded to Premium!");
+        } else {
+          console.error("Upgrade request failed:", await response.json());
+        }
+      } catch (error) {
+        console.error("Server connection error during upgrade:", error);
+      }
+    };
+
+    if (user?.email && sessionId) {
+      upgradeUserPlan();
+    }
+  }, [sessionId, user?.email, user?.id, backendUrl, refetch]);
+
   if (!sessionId) {
     return (
       <div className="max-w-[420px] w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 text-center shadow-sm flex flex-col items-center">
@@ -22,22 +63,23 @@ function SuccessReceipt() {
         <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
           No Active Transaction Found
         </h2>
-        
+
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed mb-6">
-          This receipt page is only accessible directly after completing a checkout session.
+          This receipt page is only accessible directly after completing a
+          checkout session.
         </p>
 
         <Link
-  href="/pricing"
-  className="w-full bg-[#0f766e] hover:bg-[#0d6e63] text-white font-bold py-3 rounded-xl transition-all shadow-xs cursor-pointer text-sm text-center block"
->
-  Go to Pricing Page
-</Link>
+          href="/pricing"
+          className="w-full bg-[#0f766e] hover:bg-[#0d6e63] text-white font-bold py-3 rounded-xl transition-all shadow-xs cursor-pointer text-sm text-center block"
+        >
+          Go to Pricing Page
+        </Link>
       </div>
     );
   }
 
-  // 2. Format Real Transaction Data
+  // 2. Format Transaction Data
   const orderNumber = `#DLL-${sessionId.slice(-8).toUpperCase()}`;
 
   const formattedDate = new Date().toLocaleDateString("en-US", {
@@ -60,7 +102,8 @@ function SuccessReceipt() {
         Payment Successful
       </h1>
       <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed mb-6 px-2">
-        Thank you for your purchase. Your access to Digital Life Lessons is now active.
+        Thank you for your purchase. Your access to Digital Life Lessons is now
+        active.
       </p>
 
       {/* Transaction Summary Card */}
@@ -72,7 +115,9 @@ function SuccessReceipt() {
         <div className="flex flex-col gap-2.5 text-[14px]">
           <div className="flex items-center justify-between text-zinc-700 dark:text-zinc-300 font-medium">
             <span>Premium Subscription (Lifetime)</span>
-            <span className="font-bold text-zinc-900 dark:text-white">৳1,500</span>
+            <span className="font-bold text-zinc-900 dark:text-white">
+              ৳1,500
+            </span>
           </div>
 
           <div className="flex items-center justify-between text-zinc-600 dark:text-zinc-400 text-[13px]">

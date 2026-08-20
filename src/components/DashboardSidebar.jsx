@@ -19,6 +19,7 @@ import {
   BookOpen,
   Users,
   Flag,
+  Star,
 } from "lucide-react";
 import { SidebarSkeleton } from "./SidebarSkeleton";
 
@@ -30,12 +31,20 @@ const DashboardSidebar = () => {
   const [mounted, setMounted] = useState(false);
   const [reportedCount, setReportedCount] = useState(0);
 
-  const { data: session, isPending } = authClient.useSession();
+  // Destructure refetch to keep user permissions in sync with MongoDB
+  const { data: session, isPending, refetch } = authClient.useSession();
   const user = session?.user;
+
+  const isPremium =
+    user?.role === "admin" || user?.plan === "premium" || user?.isPremium;
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    // Background sync user session with database on mount
+    if (typeof refetch === "function") {
+      refetch();
+    }
+  }, [refetch]);
 
   // Fetch dynamic report count for badge
   useEffect(() => {
@@ -109,7 +118,7 @@ const DashboardSidebar = () => {
 
       {/* User Profile Area */}
       <div className="px-6 mb-6">
-        <Link 
+        <Link
           href={navLinks.settings}
           className="flex items-center gap-3 p-2 -mx-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors group cursor-pointer"
         >
@@ -121,11 +130,18 @@ const DashboardSidebar = () => {
             <Avatar.Fallback>{getUserInitial(user?.name)}</Avatar.Fallback>
           </Avatar>
           <div className="flex flex-col min-w-0">
-            <span className="text-[14px] font-bold text-zinc-900 dark:text-white leading-tight truncate group-hover:text-[#16A696] transition-colors">
+            <span className="text-[14px] font-bold text-zinc-900 dark:text-white leading-tight truncate group-hover:text-[#16A696] transition-colors flex items-center gap-1">
               {user?.name || "User Name"}
+              {user?.plan === "premium" && (
+                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500 shrink-0" />
+              )}
             </span>
             <span className="text-[12px] font-medium text-zinc-500 capitalize">
-              {user?.role || "User Role"}
+              {user?.role === "admin"
+                ? "Admin"
+                : user?.plan === "premium"
+                ? "Premium Creator"
+                : "Free Plan"}
             </span>
           </div>
         </Link>
@@ -275,23 +291,21 @@ const DashboardSidebar = () => {
         )}
       </nav>
 
-      {/* Upgrade Section (Non-admins only) */}
-      {user?.role !== "admin" &&
-        user?.plan !== "premium" &&
-        !user?.isPremium && (
-          <div className="px-4">
-            <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
-            <Link
-              href="/pricing"
-              className="w-full bg-[#0d6e63] hover:bg-[#0a574e] text-white font-semibold text-[14px] py-3 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer"
-            >
-              Upgrade to Pro
-            </Link>
-            <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
-          </div>
-        )}
+      {/* Upgrade Section (Only for free non-admin users) */}
+      {!isPremium && (
+        <div className="px-4">
+          <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
+          <Link
+            href="/pricing"
+            className="w-full bg-[#0d6e63] hover:bg-[#0a574e] text-white font-semibold text-[14px] py-3 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer"
+          >
+            Upgrade to Pro
+          </Link>
+          <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
+        </div>
+      )}
 
-      {user?.role === "admin" && (
+      {isPremium && (
         <div className="px-4">
           <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-4" />
         </div>
