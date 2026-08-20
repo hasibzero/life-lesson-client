@@ -51,7 +51,7 @@ export default function LessonDetail() {
   const params = useParams();
   const { id } = params;
 
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
 
   const isPremiumUser =
@@ -86,12 +86,29 @@ export default function LessonDetail() {
   const backendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+  // 1. Authentication Guard: Redirect if not logged in
+  useEffect(() => {
+    if (!isPending && !user) {
+      toast.error("Please sign in to view this lesson.");
+      router.replace(`/signin?callbackUrl=/lessons/${id}`);
+    }
+  }, [isPending, user, router, id]);
+
+  // 2. Fetch Lesson and Associated Data once authenticated
   useEffect(() => {
     const fetchLessonAndData = async () => {
-      if (!id) return;
+      if (!id || !user?.id) return;
+
+      const tokenRes = await authClient.token();
+      const token = tokenRes?.data?.token;
 
       try {
-        const lessonRes = await fetch(`${backendUrl}/api/lessons/${id}`);
+        const lessonRes = await fetch(`${backendUrl}/api/lessons/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
         if (lessonRes.ok) {
           const lessonData = await lessonRes.json();
           setLesson(lessonData);
@@ -101,10 +118,8 @@ export default function LessonDetail() {
             lessonData.views || Math.floor(Math.random() * 4500) + 520,
           );
 
-          if (user?.id) {
-            if (lessonData.likes?.includes(user.id)) setIsLiked(true);
-            if (lessonData.savedBy?.includes(user.id)) setIsBookmarked(true);
-          }
+          if (lessonData.likes?.includes(user.id)) setIsLiked(true);
+          if (lessonData.savedBy?.includes(user.id)) setIsBookmarked(true);
 
           const resolvedCreatorId =
             lessonData.creatorId || lessonData.userId || lessonData.authorId;
@@ -112,6 +127,11 @@ export default function LessonDetail() {
           if (resolvedCreatorId) {
             const authorRes = await fetch(
               `${backendUrl}/api/my-lessons/${resolvedCreatorId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              },
             );
             if (authorRes.ok) {
               const authorLessons = await authorRes.json();
@@ -124,7 +144,12 @@ export default function LessonDetail() {
           return;
         }
 
-        const commentsRes = await fetch(`${backendUrl}/api/comments/${id}`);
+        const commentsRes = await fetch(`${backendUrl}/api/comments/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
         if (commentsRes.ok) {
           const commentsData = await commentsRes.json();
           setComments(commentsData);
@@ -137,8 +162,10 @@ export default function LessonDetail() {
       }
     };
 
-    fetchLessonAndData();
-  }, [id, backendUrl, user?.id]);
+    if (!isPending && user) {
+      fetchLessonAndData();
+    }
+  }, [id, backendUrl, user, isPending]);
 
   const authorId = lesson?.creatorId || lesson?.userId || lesson?.authorId;
   const authorProfileHref = authorId
@@ -159,12 +186,6 @@ export default function LessonDetail() {
       return;
     }
 
-    if (!user) {
-      toast.error("Please log in to like this lesson.");
-      router.push("/signin");
-      return;
-    }
-
     const previousIsLiked = isLiked;
     const previousLikesCount = likesCount;
 
@@ -175,10 +196,16 @@ export default function LessonDetail() {
         : previousLikesCount + 1,
     );
 
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+
     try {
       const response = await fetch(`${backendUrl}/api/lessons/${id}/like`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ userId: user.id }),
       });
 
@@ -204,12 +231,6 @@ export default function LessonDetail() {
       return;
     }
 
-    if (!user) {
-      toast.error("Please log in to save lessons to your favorites.");
-      router.push("/signin");
-      return;
-    }
-
     const previousIsBookmarked = isBookmarked;
     const previousBookmarksCount = bookmarksCount;
 
@@ -220,10 +241,16 @@ export default function LessonDetail() {
         : previousBookmarksCount + 1,
     );
 
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+
     try {
       const response = await fetch(`${backendUrl}/api/lessons/${id}/bookmark`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ userId: user.id }),
       });
 
@@ -250,16 +277,18 @@ export default function LessonDetail() {
 
   const handleReportSubmit = async (e) => {
     e.preventDefault();
-    if (!user) {
-      toast.error("You must be logged in to report a lesson.");
-      return;
-    }
 
     setIsSubmittingReport(true);
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+
     try {
       const response = await fetch(`${backendUrl}/api/lessons/${id}/report`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           lessonId: id,
           reporterUserId: user.id,
@@ -298,13 +327,19 @@ export default function LessonDetail() {
       return;
     }
 
-    if (!commentText.trim() || !user) return;
+    if (!commentText.trim()) return;
 
     setIsSubmittingComment(true);
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+
     try {
       const response = await fetch(`${backendUrl}/api/comments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           lessonId: id,
           userId: user.id,
@@ -336,7 +371,6 @@ export default function LessonDetail() {
     }
   };
 
-  // Cross-device Share & Copy Handler
   const handleShareOrCopy = async () => {
     if (typeof window === "undefined") return;
 
@@ -349,7 +383,6 @@ export default function LessonDetail() {
       url: shareUrl,
     };
 
-    // 1. Mobile Native Share Sheet (iOS Safari, Android Chrome, etc.)
     if (navigator.share) {
       try {
         await navigator.share(shareData);
@@ -363,12 +396,10 @@ export default function LessonDetail() {
       }
     }
 
-    // 2. Modern Clipboard API (Desktop & Supported Browsers)
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(shareUrl);
       } else {
-        // 3. Fallback for In-App Browsers / WebViews
         const textArea = document.createElement("textarea");
         textArea.value = shareUrl;
         textArea.style.position = "fixed";
@@ -401,7 +432,8 @@ export default function LessonDetail() {
     });
   };
 
-  if (isLoading) {
+  // 3. Render loading spinner while checking auth session or fetching data
+  if (isPending || isLoading || !user) {
     return (
       <div className="w-full min-h-screen flex items-center justify-center bg-[#f9fafb] dark:bg-[#0c0c0e]">
         <Spinner size="lg" color="current" className="text-[#0f766e]" />
@@ -417,7 +449,7 @@ export default function LessonDetail() {
         </p>
         <Button
           onClick={() => router.back()}
-          className="bg-[#0f766e] text-white rounded-xl font-semibold"
+          className="bg-[#0f766e] text-white rounded-xl font-semibold cursor-pointer"
         >
           Go Back
         </Button>
@@ -461,7 +493,7 @@ export default function LessonDetail() {
           </div>
         </div>
 
-        {/* 1. Featured Cover Image */}
+        {/* Featured Cover Image */}
         {lesson.coverImage && (
           <div className="w-full h-[280px] sm:h-[400px] rounded-3xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-800 relative bg-zinc-100 dark:bg-zinc-900">
             <img
@@ -489,7 +521,7 @@ export default function LessonDetail() {
           </div>
         )}
 
-        {/* 2. Lesson Title, Category & Tone Badges */}
+        {/* Lesson Title, Category & Tone Badges */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <Chip
@@ -528,7 +560,7 @@ export default function LessonDetail() {
           </h1>
         </div>
 
-        {/* 3. Lesson Metadata Block */}
+        {/* Metadata Block */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-[13px] shadow-xs">
           <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
             <Calendar className="w-4 h-4 text-[#0f766e]" />
@@ -579,7 +611,7 @@ export default function LessonDetail() {
           </div>
         </div>
 
-        {/* 4. Lesson Content Body or Locked State */}
+        {/* Lesson Content Body or Locked State */}
         {isLocked ? (
           <div className="relative py-14 px-6 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 shadow-sm text-center">
             <div className="absolute inset-0 opacity-15 pointer-events-none blur-md px-8 py-6 select-none overflow-hidden">
@@ -616,7 +648,7 @@ export default function LessonDetail() {
           </div>
         )}
 
-        {/* 5. Stats & Engagement Metrics Strip */}
+        {/* Stats & Engagement Metrics Strip */}
         <div className="flex flex-wrap items-center justify-between gap-4 py-4 px-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xs">
           <div className="flex items-center gap-6 text-[14px] font-bold text-zinc-600 dark:text-zinc-300">
             <div className="flex items-center gap-2">
@@ -667,7 +699,7 @@ export default function LessonDetail() {
           </div>
         </div>
 
-        {/* 6. Interaction Action Buttons */}
+        {/* Interaction Action Buttons */}
         {isLocked ? (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-amber-50/60 dark:bg-amber-500/5 border border-amber-200/60 dark:border-amber-500/20 rounded-2xl">
             <div className="flex items-center gap-2 text-[14px] text-amber-800 dark:text-amber-300 font-semibold">
@@ -727,7 +759,7 @@ export default function LessonDetail() {
           </div>
         )}
 
-        {/* 7. Dedicated Author / Creator Section */}
+        {/* Dedicated Author / Creator Section */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <Link
             href={authorProfileHref}
@@ -768,7 +800,7 @@ export default function LessonDetail() {
           </Button>
         </div>
 
-        {/* 8. Comment & Discussion Section */}
+        {/* Comment & Discussion Section */}
         <section className="flex flex-col gap-6 pt-4">
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
@@ -797,60 +829,47 @@ export default function LessonDetail() {
             </div>
           ) : (
             <>
-              {user ? (
-                <form
-                  onSubmit={handlePostComment}
-                  className="flex gap-4 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xs"
-                >
-                  <div className="w-10 h-10 rounded-full bg-[#0f766e] text-white flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
-                    {user.image ? (
-                      <img
-                        src={user.image}
-                        alt={user.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      userInitial
-                    )}
-                  </div>
-
-                  <div className="flex flex-col flex-1 gap-3">
-                    <textarea
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      placeholder="Share your reflection or key takeaway..."
-                      rows={3}
-                      className="w-full bg-[#f9fafb] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#0f766e] transition-colors resize-none"
+              <form
+                onSubmit={handlePostComment}
+                className="flex gap-4 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xs"
+              >
+                <div className="w-10 h-10 rounded-full bg-[#0f766e] text-white flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
+                  {user.image ? (
+                    <img
+                      src={user.image}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
                     />
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={!commentText.trim() || isSubmittingComment}
-                        className="bg-[#0f766e] hover:bg-[#0d6e63] disabled:opacity-50 text-white font-semibold text-[13px] px-5 py-2 rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
-                      >
-                        {isSubmittingComment ? (
-                          <Spinner size="sm" color="white" />
-                        ) : (
-                          <>
-                            <Send className="w-3.5 h-3.5" /> Post Comment
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              ) : (
-                <div className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-center">
-                  <p className="text-[14px] text-zinc-600 dark:text-zinc-400 mb-3">
-                    Log in to join the conversation and leave a reflection.
-                  </p>
-                  <Link href="/signin">
-                    <Button className="bg-[#0f766e] text-white font-semibold px-6 rounded-xl">
-                      Sign In to Comment
-                    </Button>
-                  </Link>
+                  ) : (
+                    userInitial
+                  )}
                 </div>
-              )}
+
+                <div className="flex flex-col flex-1 gap-3">
+                  <textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Share your reflection or key takeaway..."
+                    rows={3}
+                    className="w-full bg-[#f9fafb] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#0f766e] transition-colors resize-none"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={!commentText.trim() || isSubmittingComment}
+                      className="bg-[#0f766e] hover:bg-[#0d6e63] disabled:opacity-50 text-white font-semibold text-[13px] px-5 py-2 rounded-xl transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      {isSubmittingComment ? (
+                        <Spinner size="sm" color="white" />
+                      ) : (
+                        <>
+                          <Send className="w-3.5 h-3.5" /> Post Comment
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
 
               <div className="flex flex-col gap-4">
                 {comments.map((comment) => (

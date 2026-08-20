@@ -4,23 +4,22 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import {
-  Plus,
   Edit2,
   Trash2,
   Heart,
   Bookmark,
   BookOpen,
   Eye,
-  Lock,
-  Globe,
   ChevronLeft,
   ChevronRight,
   Search,
   CheckCircle2,
   Clock,
   PlusCircle,
+  AlertTriangle,
+  X,
 } from "lucide-react";
-import { Spinner, Button, Tooltip } from "@heroui/react";
+import { Spinner, Tooltip } from "@heroui/react";
 import toast from "react-hot-toast";
 import EditLessonModal from "@/components/EditLessonModal";
 
@@ -41,22 +40,25 @@ export default function MyLessons() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
 
+  // Delete Confirmation Modal State
+  const [lessonToDelete, setLessonToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const backendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   useEffect(() => {
     const fetchMyLessons = async () => {
       const tokenRes = await authClient.token();
-    const token = tokenRes?.data?.token;
-    
+      const token = tokenRes?.data?.token;
+
       if (!user?.id) return;
 
       try {
-        const response = await fetch(`${backendUrl}/api/my-lessons/${user.id}`,{
+        const response = await fetch(`${backendUrl}/api/my-lessons/${user.id}`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
-
         });
         if (response.ok) {
           const data = await response.json();
@@ -77,12 +79,18 @@ export default function MyLessons() {
 
   // 1. Handle Quick Visibility Change (Public / Private)
   const handleVisibilityChange = async (lessonId, newVisibility) => {
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+
     try {
       const response = await fetch(
         `${backendUrl}/api/update-lesson/${lessonId}`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ visibility: newVisibility }),
         },
       );
@@ -104,6 +112,9 @@ export default function MyLessons() {
 
   // 2. Handle Quick Access Level Change (Free / Premium)
   const handleAccessLevelChange = async (lessonId, newAccessLevel) => {
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+
     if (!isPremiumUser && newAccessLevel === "Premium") {
       toast.error("Upgrade to Pro to create Premium lessons.");
       return;
@@ -114,7 +125,10 @@ export default function MyLessons() {
         `${backendUrl}/api/update-lesson/${lessonId}`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ accessLevel: newAccessLevel }),
         },
       );
@@ -134,29 +148,37 @@ export default function MyLessons() {
     }
   };
 
-  // 3. Handle Permanent Delete
-  const handleDeleteLesson = async (lessonId) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to permanently delete this lesson? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
+  // 3. Confirm & Execute Permanent Delete
+  const handleConfirmDelete = async () => {
+    if (!lessonToDelete) return;
+
+    setIsDeleting(true);
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
 
     try {
-      const response = await fetch(`${backendUrl}/api/lessons/${lessonId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `${backendUrl}/api/lessons/${lessonToDelete._id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
       if (response.ok) {
         toast.success("Lesson deleted permanently.");
-        setLessons((prev) => prev.filter((l) => l._id !== lessonId));
+        setLessons((prev) => prev.filter((l) => l._id !== lessonToDelete._id));
+        setLessonToDelete(null);
       } else {
         toast.error("Failed to delete lesson.");
       }
     } catch (error) {
+      console.error("Delete error:", error);
       toast.error("Server error while deleting.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -413,9 +435,9 @@ export default function MyLessons() {
                             <Edit2 className="w-4 h-4" />
                           </button>
 
-                          {/* Delete Lesson Button */}
+                          {/* Delete Lesson Button (Opens Modal) */}
                           <button
-                            onClick={() => handleDeleteLesson(lesson._id)}
+                            onClick={() => setLessonToDelete(lesson)}
                             title="Delete Lesson"
                             className="p-2 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors cursor-pointer"
                           >
@@ -487,6 +509,70 @@ export default function MyLessons() {
           lesson={editingLesson}
           onUpdateSuccess={handleUpdateSuccess}
         />
+      )}
+
+      {/* Custom Delete Confirmation Modal */}
+      {lessonToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-[420px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col items-center text-center relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Cross Button */}
+            <button
+              onClick={() => setLessonToDelete(null)}
+              disabled={isDeleting}
+              className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-full transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Warning Icon Badge */}
+            <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center mb-4 border border-red-200/60 dark:border-red-500/20">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            {/* Modal Heading & Body */}
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
+              Delete Lesson?
+            </h2>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed mb-6">
+              Are you sure you want to permanently delete{" "}
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                "{lessonToDelete.title}"
+              </span>
+              ? This action cannot be undone.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="w-full flex items-center gap-3">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setLessonToDelete(null)}
+                className="w-1/2 py-2.5 px-4 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold rounded-xl transition-colors text-[14px] cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="w-1/2 py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-[14px] shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <Spinner size="sm" color="white" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

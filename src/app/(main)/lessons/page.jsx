@@ -88,6 +88,9 @@ export default function BrowseLessonsPage() {
   useEffect(() => {
     const fetchLessons = async () => {
       setIsLoading(true);
+      const tokenRes = await authClient.token();
+          const token = tokenRes?.data?.token;
+          
       try {
         const queryParams = new URLSearchParams({
           search: debouncedSearch.trim(),
@@ -100,7 +103,11 @@ export default function BrowseLessonsPage() {
         });
 
         const response = await fetch(
-          `${backendUrl}/api/lessons?${queryParams.toString()}`,
+          `${backendUrl}/api/lessons?${queryParams.toString()}`,{
+            headers:{
+              'Authorization': `Bearer ${token}`
+            }
+          }
         );
 
         if (response.ok) {

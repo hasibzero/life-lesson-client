@@ -33,6 +33,7 @@ export default function LessonsCard() {
 
   useEffect(() => {
     const fetchLessons = async () => {
+      
       try {
         const backendUrl =
           process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";

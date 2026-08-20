@@ -65,12 +65,17 @@ export default function SavedLessonsTablePage() {
 
   // Remove from Favorites Action
   const handleRemoveBookmark = async (lessonId) => {
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+    
     try {
       const response = await fetch(
         `${backendUrl}/api/lessons/${lessonId}/bookmark`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json",
+            'Authorization': `Bearer ${token}`
+           },
           body: JSON.stringify({ userId: user?.id }),
         },
       );
