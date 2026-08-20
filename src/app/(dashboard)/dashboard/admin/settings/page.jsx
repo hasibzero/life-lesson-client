@@ -52,12 +52,27 @@ export default function AdminProfileSettings() {
   // Fetch Admin Activity & Moderation Data
   useEffect(() => {
     const fetchAdminActivity = async () => {
+      const tokenRes = await authClient.token();
+      const token = tokenRes?.data?.token;
+
       try {
         const [statsRes, reportsRes, myLessonsRes] = await Promise.all([
-          fetch(`${backendUrl}/api/admin/stats`),
-          fetch(`${backendUrl}/api/admin/reports`),
+          fetch(`${backendUrl}/api/admin/stats`,{
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
+          fetch(`${backendUrl}/api/admin/reports`,{
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
           user?.id
-            ? fetch(`${backendUrl}/api/my-lessons/${user.id}`)
+            ? fetch(`${backendUrl}/api/my-lessons/${user.id}`,{
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            })
             : Promise.resolve(null),
         ]);
 

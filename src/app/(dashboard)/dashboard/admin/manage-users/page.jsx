@@ -1,13 +1,31 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, ChevronLeft, ChevronRight, Shield, UserCheck, UserX, Crown, Trash2, Users } from "lucide-react";
+import { 
+  Search, 
+  ChevronLeft, 
+  ChevronRight, 
+  Shield, 
+  UserCheck, 
+  UserX, 
+  Crown, 
+  Trash2, 
+  Users,
+  AlertTriangle,
+  BookOpen,
+  X
+} from "lucide-react";
 import { Spinner, Button } from "@heroui/react";
 import toast from "react-hot-toast";
+import { authClient } from "@/lib/auth-client";
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Delete Modal State
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter & Search States
   const [searchQuery, setSearchQuery] = useState("");
@@ -20,13 +38,50 @@ export default function UserManagementPage() {
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-  // Fetch Users
+  // Fetch Users & Lessons in Parallel to Calculate Published Lesson Counts
   const fetchUsers = async () => {
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+
     try {
-      const response = await fetch(`${backendUrl}/api/admin/users`);
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data);
+      const [usersRes, lessonsRes] = await Promise.all([
+        fetch(`${backendUrl}/api/admin/users`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }),
+        fetch(`${backendUrl}/api/lessons/admin-all`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+      ]);
+
+      let lessonsData = [];
+      if (lessonsRes.ok) {
+        lessonsData = await lessonsRes.json();
+      }
+
+      // Map lesson count per creator ID
+      const lessonCountMap = {};
+      if (Array.isArray(lessonsData)) {
+        lessonsData.forEach((lesson) => {
+          const creatorId = (lesson.creatorId || lesson.userId)?.toString();
+          if (creatorId) {
+            lessonCountMap[creatorId] = (lessonCountMap[creatorId] || 0) + 1;
+          }
+        });
+      }
+
+      if (usersRes.ok) {
+        const rawUsers = await usersRes.json();
+        const enrichedUsers = Array.isArray(rawUsers)
+          ? rawUsers.map((u) => ({
+              ...u,
+              lessonsCount: u.lessonsCount ?? (lessonCountMap[u._id?.toString()] || 0)
+            }))
+          : [];
+        setUsers(enrichedUsers);
       } else {
         toast.error("Failed to load platform users.");
       }
@@ -42,12 +97,18 @@ export default function UserManagementPage() {
     fetchUsers();
   }, [backendUrl]);
 
-  // Handle User Action Updates (Suspend, Make Premium, Make Admin, Delete)
+  // Handle User Action Updates (Suspend, Make Premium, Make Admin)
   const handleUpdateUser = async (userId, updatePayload, successMessage) => {
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+    
     try {
       const response = await fetch(`${backendUrl}/api/admin/users/${userId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(updatePayload),
       });
 
@@ -62,23 +123,33 @@ export default function UserManagementPage() {
     }
   };
 
-  // Handle Delete User
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm("Are you sure you want to permanently delete this user?")) return;
+  // Confirm & Execute User Deletion
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+
+    setIsDeleting(true);
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
 
     try {
-      const response = await fetch(`${backendUrl}/api/admin/users/${userId}`, {
+      const response = await fetch(`${backendUrl}/api/admin/users/${userToDelete._id}`, {
         method: "DELETE",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (response.ok) {
         toast.success("User deleted successfully.");
-        setUsers(users.filter(u => u._id !== userId));
+        setUsers(prev => prev.filter(u => u._id !== userToDelete._id));
+        setUserToDelete(null);
       } else {
         toast.error("Failed to delete user.");
       }
     } catch (error) {
       toast.error("Server error while deleting user.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -133,7 +204,7 @@ export default function UserManagementPage() {
         </p>
       </div>
 
-      {/* Metric Cards Row - Separated into 4 distinct cards for Total, Admins, Pro, and Free */}
+      {/* Metric Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Total Users */}
@@ -237,6 +308,7 @@ export default function UserManagementPage() {
                 <th className="py-4 px-6">User</th>
                 <th className="py-4 px-6">Role</th>
                 <th className="py-4 px-6">Joined Date</th>
+                <th className="py-4 px-6">Lessons</th>
                 <th className="py-4 px-6">Subscription</th>
                 <th className="py-4 px-6">Status</th>
                 <th className="py-4 px-6 text-right">Actions</th>
@@ -283,17 +355,25 @@ export default function UserManagementPage() {
                     </td>
 
                     {/* Joined Date */}
-                    <td className="py-4 px-6 text-zinc-600 dark:text-zinc-400 font-medium">
+                    <td className="py-4 px-6 text-zinc-600 dark:text-zinc-400 font-medium whitespace-nowrap">
                       {formatDate(u.createdAt)}
                     </td>
 
+                    {/* Published Lessons Count */}
+                    <td className="py-4 px-6 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-bold bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400 border border-teal-200/50 dark:border-teal-500/20">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        {u.lessonsCount || 0} {u.lessonsCount === 1 ? "Lesson" : "Lessons"}
+                      </span>
+                    </td>
+
                     {/* Subscription */}
-                    <td className="py-4 px-6 font-semibold text-zinc-900 dark:text-white">
+                    <td className="py-4 px-6 font-semibold text-zinc-900 dark:text-white whitespace-nowrap">
                       {isPremium ? "Pro" : "Free"}
                     </td>
 
                     {/* Status */}
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-6 whitespace-nowrap">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold ${
                         isSuspended ? "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400" : "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400"
                       }`}>
@@ -303,7 +383,7 @@ export default function UserManagementPage() {
                     </td>
 
                     {/* Actions Menu */}
-                    <td className="py-4 px-6 text-right">
+                    <td className="py-4 px-6 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
                         
                         {/* Toggle Ban / Unban */}
@@ -335,7 +415,7 @@ export default function UserManagementPage() {
 
                         {/* Delete User */}
                         <button
-                          onClick={() => handleDeleteUser(u._id)}
+                          onClick={() => setUserToDelete(u)}
                           title="Delete User"
                           className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 transition-colors cursor-pointer"
                         >
@@ -351,7 +431,7 @@ export default function UserManagementPage() {
 
               {currentUsers.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-500">
+                  <td colSpan={7} className="py-12 text-center text-zinc-500">
                     No users found matching your search.
                   </td>
                 </tr>
@@ -386,6 +466,70 @@ export default function UserManagementPage() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-[420px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col items-center text-center relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setUserToDelete(null)}
+              disabled={isDeleting}
+              className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-full transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Warning Icon */}
+            <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center mb-4 border border-red-200/60 dark:border-red-500/20">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            {/* Modal Heading & Description */}
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
+              Delete User Account?
+            </h2>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed mb-6">
+              Are you sure you want to permanently delete{" "}
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                "{userToDelete.name || userToDelete.email}"
+              </span>
+              ? This action cannot be undone and will erase all profile access.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="w-full flex items-center gap-3">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setUserToDelete(null)}
+                className="w-1/2 py-2.5 px-4 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold rounded-xl transition-colors text-[14px] cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="w-1/2 py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-[14px] shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <Spinner size="sm" color="white" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

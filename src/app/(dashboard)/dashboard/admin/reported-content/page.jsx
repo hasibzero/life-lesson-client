@@ -2,23 +2,24 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { 
-  AlertCircle, 
-  CheckCircle2, 
-  ChevronLeft, 
-  ChevronRight, 
-  Trash2, 
-  Eye, 
-  X, 
-  ShieldCheck, 
-  User, 
-  Clock, 
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Eye,
+  X,
+  ShieldCheck,
+  User,
+  Clock,
   FileText,
   AlertTriangle,
-  Mail
+  Mail,
 } from "lucide-react";
 import { Spinner, Button } from "@heroui/react";
 import toast from "react-hot-toast";
+import { authClient } from "@/lib/auth-client";
 
 export default function ReportedContentPage() {
   const [reports, setReports] = useState([]);
@@ -30,12 +31,24 @@ export default function ReportedContentPage() {
   const [selectedLessonGroup, setSelectedLessonGroup] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  // Delete Confirmation Modal State
+  const [lessonToDelete, setLessonToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   // Fetch Reports
   const fetchReports = async () => {
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+
     try {
-      const response = await fetch(`${backendUrl}/api/admin/reports`);
+      const response = await fetch(`${backendUrl}/api/admin/reports`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setReports(Array.isArray(data) ? data : []);
@@ -55,16 +68,20 @@ export default function ReportedContentPage() {
   }, [backendUrl]);
 
   // Case-insensitive status grouping
-  const openReports = reports.filter((r) => r.status?.toLowerCase() !== "resolved");
-  const resolvedReportsCount = reports.filter((r) => r.status?.toLowerCase() === "resolved").length;
+  const openReports = reports.filter(
+    (r) => r.status?.toLowerCase() !== "resolved",
+  );
+  const resolvedReportsCount = reports.filter(
+    (r) => r.status?.toLowerCase() === "resolved",
+  ).length;
 
   const groupedMap = {};
   openReports.forEach((report) => {
     const key = report.lessonId?.toString() || "unknown";
-    const detectedAuthor = 
-      report.authorName || 
-      report.creatorName || 
-      report.lessonAuthor || 
+    const detectedAuthor =
+      report.authorName ||
+      report.creatorName ||
+      report.lessonAuthor ||
       "Community Creator";
 
     if (!groupedMap[key]) {
@@ -74,7 +91,10 @@ export default function ReportedContentPage() {
         authorName: detectedAuthor,
         reports: [],
       };
-    } else if (groupedMap[key].authorName === "Community Creator" && detectedAuthor !== "Community Creator") {
+    } else if (
+      groupedMap[key].authorName === "Community Creator" &&
+      detectedAuthor !== "Community Creator"
+    ) {
       groupedMap[key].authorName = detectedAuthor;
     }
 
@@ -84,22 +104,37 @@ export default function ReportedContentPage() {
   const groupedReportedLessons = Object.values(groupedMap);
 
   // Pagination Logic
-  const totalPages = Math.ceil(groupedReportedLessons.length / itemsPerPage) || 1;
+  const totalPages =
+    Math.ceil(groupedReportedLessons.length / itemsPerPage) || 1;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentLessons = groupedReportedLessons.slice(indexOfFirstItem, indexOfLastItem);
+  const currentLessons = groupedReportedLessons.slice(
+    indexOfFirstItem,
+    indexOfLastItem,
+  );
 
   // Handle Ignore / Dismiss Reports
   const handleIgnoreReports = async (lessonId) => {
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+
     try {
-      const response = await fetch(`${backendUrl}/api/admin/reports/lesson/${lessonId}/resolve`, {
-        method: "PATCH",
-      });
+      const response = await fetch(
+        `${backendUrl}/api/admin/reports/lesson/${lessonId}/resolve`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
       if (response.ok) {
         toast.success("Reports cleared. Lesson remains active.");
         setReports((prev) =>
-          prev.map((r) => (r.lessonId === lessonId ? { ...r, status: "resolved" } : r))
+          prev.map((r) =>
+            r.lessonId === lessonId ? { ...r, status: "resolved" } : r,
+          ),
         );
         setIsModalOpen(false);
       } else {
@@ -111,29 +146,44 @@ export default function ReportedContentPage() {
     }
   };
 
-  // Handle Delete Lesson
-  const handleDeleteLesson = async (lessonId) => {
-    if (!window.confirm("Are you sure you want to permanently delete this lesson? This action cannot be undone.")) {
-      return;
-    }
+  // Confirm & Execute Permanent Delete
+  const handleConfirmDelete = async () => {
+    if (!lessonToDelete) return;
+
+    setIsDeleting(true);
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
 
     try {
-      const response = await fetch(`${backendUrl}/api/lessons/${lessonId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `${backendUrl}/api/lessons/${lessonToDelete.lessonId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
       if (response.ok) {
         toast.success("Lesson permanently deleted.");
         setReports((prev) =>
-          prev.map((r) => (r.lessonId === lessonId ? { ...r, status: "resolved" } : r))
+          prev.map((r) =>
+            r.lessonId === lessonToDelete.lessonId
+              ? { ...r, status: "resolved" }
+              : r,
+          ),
         );
         setIsModalOpen(false);
+        setLessonToDelete(null);
       } else {
         toast.error("Failed to delete lesson.");
       }
     } catch (error) {
       console.error("Error deleting lesson:", error);
       toast.error("Server error while deleting.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -156,20 +206,19 @@ export default function ReportedContentPage() {
 
   return (
     <div className="w-full flex flex-col gap-8 font-sans pb-16">
-      
       {/* Header */}
       <div>
         <h1 className="text-3xl font-extrabold text-[#1a202c] dark:text-white tracking-tight">
           Reported Content
         </h1>
         <p className="text-[15px] text-zinc-600 dark:text-zinc-400 mt-1">
-          Review flagged lessons, inspect moderation reasons, and take administrative action.
+          Review flagged lessons, inspect moderation reasons, and take
+          administrative action.
         </p>
       </div>
 
       {/* Metric Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
         {/* Flagged Lessons */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex items-center justify-between shadow-sm">
           <div className="flex flex-col">
@@ -179,7 +228,9 @@ export default function ReportedContentPage() {
             <span className="text-3xl font-extrabold text-red-600 dark:text-red-400">
               {groupedReportedLessons.length}
             </span>
-            <span className="text-[12px] text-zinc-400 mt-1">Requiring decision</span>
+            <span className="text-[12px] text-zinc-400 mt-1">
+              Requiring decision
+            </span>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center">
             <AlertCircle className="w-6 h-6" />
@@ -195,7 +246,9 @@ export default function ReportedContentPage() {
             <span className="text-3xl font-extrabold text-amber-600 dark:text-amber-400">
               {openReports.length}
             </span>
-            <span className="text-[12px] text-zinc-400 mt-1">Open complaints</span>
+            <span className="text-[12px] text-zinc-400 mt-1">
+              Open complaints
+            </span>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
             <AlertTriangle className="w-6 h-6" />
@@ -211,13 +264,14 @@ export default function ReportedContentPage() {
             <span className="text-3xl font-extrabold text-[#0f766e] dark:text-[#16A696]">
               {resolvedReportsCount}
             </span>
-            <span className="text-[12px] text-zinc-400 mt-1">Moderated / Cleared</span>
+            <span className="text-[12px] text-zinc-400 mt-1">
+              Moderated / Cleared
+            </span>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-500/10 text-[#0f766e] dark:text-[#16A696] flex items-center justify-center">
             <CheckCircle2 className="w-6 h-6" />
           </div>
         </div>
-
       </div>
 
       {/* Reported Lessons Table */}
@@ -235,8 +289,10 @@ export default function ReportedContentPage() {
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-[14px]">
               {currentLessons.map((group) => (
-                <tr key={group.lessonId} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors">
-                  
+                <tr
+                  key={group.lessonId}
+                  className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors"
+                >
                   {/* Lesson Title & Link */}
                   <td className="py-4 px-6 font-bold text-zinc-900 dark:text-white">
                     <Link
@@ -257,7 +313,8 @@ export default function ReportedContentPage() {
                   <td className="py-4 px-6 text-center whitespace-nowrap">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-extrabold bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-900/50">
                       <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                      {group.reports.length} {group.reports.length === 1 ? "Report" : "Reports"}
+                      {group.reports.length}{" "}
+                      {group.reports.length === 1 ? "Report" : "Reports"}
                     </span>
                   </td>
 
@@ -277,28 +334,26 @@ export default function ReportedContentPage() {
                   {/* Actions: Ignore / Delete Lesson */}
                   <td className="py-4 px-6 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-2">
-                      
                       {/* Ignore Action */}
                       <button
                         onClick={() => handleIgnoreReports(group.lessonId)}
                         title="Ignore and dismiss all reports for this lesson"
                         className="px-3.5 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold text-[13px] transition-colors cursor-pointer inline-flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700"
                       >
-                        <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Ignore
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />{" "}
+                        Ignore
                       </button>
 
-                      {/* Delete Action */}
+                      {/* Delete Action (Triggers Modal) */}
                       <button
-                        onClick={() => handleDeleteLesson(group.lessonId)}
+                        onClick={() => setLessonToDelete(group)}
                         title="Permanently delete this lesson"
                         className="px-3.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-semibold text-[13px] transition-colors cursor-pointer inline-flex items-center gap-1.5 border border-red-200 dark:border-red-900/50"
                       >
                         <Trash2 className="w-4 h-4" /> Delete Lesson
                       </button>
-
                     </div>
                   </td>
-
                 </tr>
               ))}
 
@@ -326,8 +381,10 @@ export default function ReportedContentPage() {
         {/* Pagination Footer */}
         <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
           <span className="text-[14px] text-zinc-500">
-            Showing {groupedReportedLessons.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
-            {Math.min(indexOfLastItem, groupedReportedLessons.length)} of {groupedReportedLessons.length} flagged lessons
+            Showing{" "}
+            {groupedReportedLessons.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
+            {Math.min(indexOfLastItem, groupedReportedLessons.length)} of{" "}
+            {groupedReportedLessons.length} flagged lessons
           </span>
 
           {totalPages > 1 && (
@@ -340,7 +397,9 @@ export default function ReportedContentPage() {
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
                 disabled={currentPage === totalPages}
                 className="w-9 h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
@@ -355,7 +414,6 @@ export default function ReportedContentPage() {
       {isModalOpen && selectedLessonGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs px-4">
           <div className="w-full max-w-xl bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-7 shadow-2xl flex flex-col gap-6 max-h-[85vh] overflow-hidden">
-            
             {/* Modal Header */}
             <div className="flex items-start justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
               <div className="flex flex-col pr-4">
@@ -367,10 +425,14 @@ export default function ReportedContentPage() {
                   {selectedLessonGroup.lessonTitle}
                 </span>
                 <span className="text-[12px] text-zinc-500">
-                  Author: <span className="font-semibold text-zinc-700 dark:text-zinc-300">{selectedLessonGroup.authorName}</span> • {selectedLessonGroup.reports.length} total reports
+                  Author:{" "}
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    {selectedLessonGroup.authorName}
+                  </span>{" "}
+                  • {selectedLessonGroup.reports.length} total reports
                 </span>
               </div>
-              
+
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
@@ -392,12 +454,16 @@ export default function ReportedContentPage() {
                         <User className="w-3.5 h-3.5" />
                       </div>
                       <span className="truncate max-w-[220px]">
-                        {report.reporterEmail || report.userName || report.reporterName || "Anonymous User"}
+                        {report.reporterEmail ||
+                          report.userName ||
+                          report.reporterName ||
+                          "Anonymous User"}
                       </span>
                     </div>
 
                     <span className="text-[12px] text-zinc-400 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" /> {formatDate(report.createdAt)}
+                      <Clock className="w-3.5 h-3.5" />{" "}
+                      {formatDate(report.createdAt)}
                     </span>
                   </div>
 
@@ -438,24 +504,90 @@ export default function ReportedContentPage() {
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <button
-                  onClick={() => handleIgnoreReports(selectedLessonGroup.lessonId)}
+                  onClick={() =>
+                    handleIgnoreReports(selectedLessonGroup.lessonId)
+                  }
                   className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 font-semibold text-[13px] px-4 py-2 rounded-xl cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" /> Ignore All
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" /> Ignore
+                  All
                 </button>
                 <button
-                  onClick={() => handleDeleteLesson(selectedLessonGroup.lessonId)}
+                  onClick={() => setLessonToDelete(selectedLessonGroup)}
                   className="bg-red-600 hover:bg-red-700 text-white font-semibold text-[13px] px-4 py-2 rounded-xl cursor-pointer inline-flex items-center gap-1.5"
                 >
                   <Trash2 className="w-4 h-4" /> Delete Lesson
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}
 
+      {/* DELETE CONFIRMATION MODAL */}
+      {lessonToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-[420px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col items-center text-center relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setLessonToDelete(null)}
+              disabled={isDeleting}
+              className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-full transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Warning Icon Badge */}
+            <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center mb-4 border border-red-200/60 dark:border-red-500/20">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            {/* Modal Heading & Description */}
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
+              Delete Flagged Lesson?
+            </h2>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed mb-6">
+              Are you sure you want to permanently delete{" "}
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                "{lessonToDelete.lessonTitle}"
+              </span>
+              ? This action cannot be undone and will resolve all linked report
+              tickets.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="w-full flex items-center gap-3">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setLessonToDelete(null)}
+                className="w-1/2 py-2.5 px-4 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-semibold rounded-xl transition-colors text-[14px] cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="w-1/2 py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-[14px] shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <Spinner size="sm" color="white" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
