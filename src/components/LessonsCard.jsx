@@ -27,36 +27,50 @@ export default function LessonsCard() {
   const { data: session } = authClient.useSession();
   const user = session?.user;
 
-  const isPremiumUser = user?.role === "admin" || user?.plan === "premium";
+  // Case-insensitive premium check
+  const isPremiumUser =
+    user?.role?.toLowerCase() === "admin" ||
+    user?.plan?.toLowerCase() === "premium" ||
+    Boolean(user?.isPremium);
 
   const [lessons, setLessons] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchLessons = async () => {
       try {
-        // 👈 Added a safe fallback URL so it never evaluates to undefined
-        const backendUrl =
+        const rawBackendUrl =
           process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+        const backendUrl = rawBackendUrl.replace(/\/$/, "");
 
         const response = await fetch(`${backendUrl}/api/lessons/featured`);
 
         if (response.ok) {
           const data = await response.json();
-          setLessons(data);
+          if (isMounted) {
+            setLessons(Array.isArray(data) ? data : []);
+          }
         } else {
           console.error("Backend returned non-OK status:", response.status);
-          toast.error("Failed to load featured lessons.");
+          if (isMounted) toast.error("Failed to load featured lessons.");
         }
       } catch (error) {
         console.error("Error fetching lessons:", error);
-        toast.error("Server connection error.");
+        if (isMounted) toast.error("Server connection error.");
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchLessons();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const formatDate = (dateString) => {
@@ -65,7 +79,6 @@ export default function LessonsCard() {
     return new Date(dateString).toLocaleDateString("en-US", options);
   };
 
-  // Only display lessons that have been approved/reviewed
   const reviewedLessons = lessons?.filter(
     (lesson) => lesson?.isReviewed === true,
   );
@@ -89,10 +102,12 @@ export default function LessonsCard() {
   }
 
   return (
-    <section className="w-full py-4">
+    <section className="w-full py-4 font-sans">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {reviewedLessons.map((lesson) => {
-          const isLocked = lesson?.accessLevel === "Premium" && !isPremiumUser;
+          const isLocked =
+            (lesson?.accessLevel || "").toLowerCase() === "premium" &&
+            !isPremiumUser;
 
           return (
             <Card
@@ -113,19 +128,17 @@ export default function LessonsCard() {
                       ? "Upgrade to view this content"
                       : "Sign in & upgrade to view"}
                   </p>
-                  <Link href={user ? "/pricing" : "/signin"} className="w-full">
-                    <Button
-                      radius="sm"
-                      className="w-full font-semibold text-white shadow-md cursor-pointer"
-                      style={{ backgroundColor: "#9c5236" }}
-                    >
-                      {user ? "Upgrade Now" : "Sign In"}
-                    </Button>
+                  <Link
+                    href={user ? "/pricing" : "/signin"}
+                    className="w-full py-2.5 px-4 text-center font-semibold text-white rounded-sm shadow-md transition-opacity hover:opacity-90 block cursor-pointer text-sm"
+                    style={{ backgroundColor: "#9c5236" }}
+                  >
+                    {user ? "Upgrade Now" : "Sign In"}
                   </Link>
                 </div>
               )}
 
-              {/* Header */}
+              {/* Header Chips */}
               <div className="flex justify-between items-start pt-5 px-5">
                 <div className="flex flex-wrap gap-2">
                   <Chip
@@ -188,16 +201,13 @@ export default function LessonsCard() {
                 </div>
               </div>
 
-              {/* Footer */}
+              {/* Footer Button */}
               <div className="px-5 pb-5 pt-3">
-                <Link href={`/lessons/${lesson?._id}`} className="w-full">
-                  <Button
-                    radius="sm"
-                    variant="bordered"
-                    className="w-full font-semibold border-2 transition-colors hover:bg-[#149788] hover:text-white border-[#149788] text-[#149788] cursor-pointer"
-                  >
-                    See Details
-                  </Button>
+                <Link
+                  href={`/lessons/${lesson?._id}`}
+                  className="w-full py-2 text-center font-semibold rounded-sm border-2 transition-colors hover:bg-[#149788] hover:text-white border-[#149788] text-[#149788] block text-sm cursor-pointer"
+                >
+                  See Details
                 </Link>
               </div>
             </Card>
