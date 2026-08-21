@@ -8,6 +8,7 @@ import { Button, TextField, Label, InputGroup, Input } from "@heroui/react";
 import { useForm } from "react-hook-form";
 import { authClient } from "@/lib/auth-client";
 import toast from "react-hot-toast";
+import Image from "next/image";
 
 // === Reusable SVGs ===
 
