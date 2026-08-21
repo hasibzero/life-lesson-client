@@ -6,7 +6,7 @@ Digital Life Lessons is a modern, high-performance web platform designed for sha
 
 ## 🌐 Live URL
 
-- **Frontend**: [https://digital-life-lessons.vercel.app](https://digital-life-lessons.vercel.app)
+- **Frontend**: [(https://life-lesson-client-hasib.vercel.app/)]((https://life-lesson-client-hasib.vercel.app/))
 - **Backend API**: [https://life-lesson-server-hasib.vercel.app](https://life-lesson-server-hasib.vercel.app)
 
 ---
