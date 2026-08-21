@@ -1,7 +1,7 @@
-"use client";
+'use client';
 import ImageWithSpinner from "@/components/ImageWithSpinner";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
@@ -26,7 +26,7 @@ const LockIcon = () => (
   </svg>
 );
 
-export default function BrowseLessonsPage() {
+function LessonsContent() {
   const { data: session } = authClient.useSession();
   const user = session?.user;
   const isPremiumUser =
@@ -90,8 +90,8 @@ export default function BrowseLessonsPage() {
     const fetchLessons = async () => {
       setIsLoading(true);
       const tokenRes = await authClient.token();
-          const token = tokenRes?.data?.token;
-          
+      const token = tokenRes?.data?.token;
+      
       try {
         const queryParams = new URLSearchParams({
           search: debouncedSearch.trim(),
@@ -104,8 +104,8 @@ export default function BrowseLessonsPage() {
         });
 
         const response = await fetch(
-          `${backendUrl}/api/lessons?${queryParams.toString()}`,{
-            headers:{
+          `${backendUrl}/api/lessons?${queryParams.toString()}`, {
+            headers: {
               'Authorization': `Bearer ${token}`
             }
           }
@@ -378,5 +378,19 @@ export default function BrowseLessonsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function BrowseLessonsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full min-h-[60vh] flex items-center justify-center">
+          <Spinner size="lg" color="current" className="text-[#149788]" />
+        </div>
+      }
+    >
+      <LessonsContent />
+    </Suspense>
   );
 }
