@@ -50,8 +50,9 @@ const DashboardSidebar = () => {
   useEffect(() => {
     const fetchReportedCount = async () => {
       try {
-        const backendUrl =
+        const rawBackendUrl =
           process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+        const backendUrl = rawBackendUrl.replace(/\/$/, "");
         const res = await fetch(`${backendUrl}/api/admin/stats`);
         if (res.ok) {
           const data = await res.json();
@@ -140,8 +141,8 @@ const DashboardSidebar = () => {
               {user?.role === "admin"
                 ? "Admin"
                 : user?.plan === "premium"
-                ? "Premium Creator"
-                : "Free Plan"}
+                  ? "Premium Creator"
+                  : "Free Plan"}
             </span>
           </div>
         </Link>
@@ -174,6 +175,19 @@ const DashboardSidebar = () => {
             >
               <BookOpen className="w-5 h-5" />
               Manage Lessons
+            </Link>
+
+            {/* 👈 Added Admin's Personal Created Lessons */}
+            <Link
+              href={navLinks.lessons}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-semibold transition-colors ${
+                isActive(navLinks.lessons)
+                  ? "bg-[#16A696] text-white shadow-sm"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              }`}
+            >
+              <GraduationCap className="w-5 h-5" />
+              My Lessons
             </Link>
 
             <Link
