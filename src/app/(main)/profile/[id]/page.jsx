@@ -1,4 +1,5 @@
 "use client";
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -112,9 +113,8 @@ export default function AuthorProfilePage() {
   }
 
   const authorName = author?.name || "Author";
-  const authorAvatar =
-    author?.image ||
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=0f766e&color=fff`;
+  const hasAvatar = !!author?.image;
+  const avatarInitials = authorName.charAt(0).toUpperCase();
 
   return (
     <div className="w-full min-h-screen bg-[#f9fafb] dark:bg-[#0c0c0e] py-12 px-4 sm:px-8 lg:px-16 font-sans">
@@ -130,11 +130,17 @@ export default function AuthorProfilePage() {
         {/* Author Header Banner */}
         <div className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-sm flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
-            <img
-              src={authorAvatar}
-              alt={authorName}
-              className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-zinc-800 shadow-md"
-            />
+            {hasAvatar ? (
+              <ImageWithSpinner width={500} height={500}
+                src={author?.image}
+                alt={authorName}
+                className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-zinc-800 shadow-md"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-[#0f766e] text-white flex items-center justify-center font-bold text-4xl border-4 border-white dark:border-zinc-800 shadow-md">
+                {avatarInitials}
+              </div>
+            )}
             <div className="flex flex-col gap-1">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white">
@@ -220,7 +226,7 @@ export default function AuthorProfilePage() {
                       {/* Card Cover */}
                       <div className="relative w-full h-44 bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                         {lesson.coverImage ? (
-                          <img
+                          <ImageWithSpinner width={500} height={500}
                             src={lesson.coverImage}
                             alt={lesson.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

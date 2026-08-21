@@ -1,4 +1,5 @@
 "use client";
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -486,7 +487,7 @@ export default function LessonDetail() {
         {/* Featured Cover Image */}
         {lesson.coverImage && (
           <div className="w-full h-[280px] sm:h-[400px] rounded-3xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-800 relative bg-zinc-100 dark:bg-zinc-900 print:h-[250px] print:rounded-none print:border-none print:shadow-none">
-            <img
+            <ImageWithSpinner width={500} height={500}
               src={lesson.coverImage}
               alt={lesson.title}
               className={`w-full h-full object-cover transition-all duration-300 ${
@@ -755,14 +756,17 @@ export default function LessonDetail() {
             href={authorProfileHref}
             className="flex items-center gap-4 group cursor-pointer"
           >
-            <img
-              src={
-                lesson.creatorAvatar ||
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(lesson.creatorName || "Author")}&background=0f766e&color=fff`
-              }
-              alt={lesson.creatorName || "Author"}
-              className="w-16 h-16 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700 shrink-0 group-hover:ring-2 group-hover:ring-[#0f766e] transition-all"
-            />
+            {lesson.creatorAvatar ? (
+              <ImageWithSpinner width={500} height={500}
+                src={lesson.creatorAvatar}
+                alt={lesson.creatorName || "Author"}
+                className="w-16 h-16 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700 shrink-0 group-hover:ring-2 group-hover:ring-[#0f766e] transition-all"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-[#0f766e] text-white flex items-center justify-center font-bold text-2xl border-2 border-zinc-200 dark:border-zinc-700 shrink-0 group-hover:ring-2 group-hover:ring-[#0f766e] transition-all">
+                {(lesson.creatorName || "A").charAt(0).toUpperCase()}
+              </div>
+            )}
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-white group-hover:text-[#0f766e] dark:group-hover:text-[#16A696] transition-colors">
@@ -825,7 +829,7 @@ export default function LessonDetail() {
               >
                 <div className="w-10 h-10 rounded-full bg-[#0f766e] text-white flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
                   {user.image ? (
-                    <img
+                    <ImageWithSpinner width={500} height={500}
                       src={user.image}
                       alt={user.name}
                       className="w-full h-full object-cover"
@@ -867,14 +871,17 @@ export default function LessonDetail() {
                     key={comment._id || Math.random()}
                     className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl flex gap-3.5 shadow-xs"
                   >
-                    <img
-                      src={
-                        comment.creatorAvatar ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.creatorName || "User")}&background=random`
-                      }
-                      alt={comment.creatorName}
-                      className="w-9 h-9 rounded-full object-cover shrink-0 border border-zinc-200 dark:border-zinc-700 mt-0.5"
-                    />
+                    {comment.creatorAvatar ? (
+                      <ImageWithSpinner width={500} height={500}
+                        src={comment.creatorAvatar}
+                        alt={comment.creatorName}
+                        className="w-9 h-9 rounded-full object-cover shrink-0 border border-zinc-200 dark:border-zinc-700 mt-0.5"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-[#0f766e] text-white flex items-center justify-center font-bold text-sm shrink-0 border border-zinc-200 dark:border-zinc-700 mt-0.5">
+                        {(comment.creatorName || "U").charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div className="flex flex-col flex-1">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[13px] font-bold text-zinc-900 dark:text-white">

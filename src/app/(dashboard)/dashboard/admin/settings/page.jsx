@@ -1,4 +1,5 @@
 "use client";
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -256,7 +257,7 @@ export default function AdminProfileSettings() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="relative">
             {currentImage ? (
-              <img
+              <ImageWithSpinner width={500} height={500}
                 src={currentImage}
                 alt="Profile Avatar"
                 className={`w-24 h-24 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700 shadow-sm transition-opacity ${isUploadingImage ? "opacity-40" : "opacity-100"}`}

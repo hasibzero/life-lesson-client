@@ -1,4 +1,5 @@
 "use client";
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useState, useEffect } from "react";
 import { 
@@ -329,7 +330,7 @@ export default function UserManagementPage() {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-[#0f766e] text-white flex items-center justify-center font-bold text-sm shrink-0 uppercase overflow-hidden">
                           {u.image ? (
-                            <img src={u.image} alt="" className="w-full h-full rounded-full object-cover" />
+                            <ImageWithSpinner width={500} height={500} src={u.image} alt="" className="w-full h-full rounded-full object-cover" />
                           ) : (
                             userInitial
                           )}

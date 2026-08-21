@@ -1,8 +1,8 @@
 "use client";
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button, TextField, Label, InputGroup, Input } from "@heroui/react";
 import { useForm } from "react-hook-form";
@@ -251,7 +251,7 @@ export default function SignUp() {
                 <label htmlFor="avatarUpload" className="cursor-pointer">
                   <div className="w-[72px] h-[72px] rounded-full border-[1.5px] border-dashed border-zinc-300 flex items-center justify-center bg-[#f8fafc] dark:bg-zinc-800 group-hover:bg-zinc-100 dark:group-hover:bg-zinc-700 transition-colors overflow-hidden">
                     {avatarPreview ? (
-                      <img
+                      <ImageWithSpinner width={500} height={500}
                         src={avatarPreview}
                         alt="Avatar Preview"
                         className="w-full h-full object-cover"

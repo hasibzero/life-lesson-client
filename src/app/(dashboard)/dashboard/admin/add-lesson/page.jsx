@@ -1,4 +1,5 @@
 'use client';
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
@@ -198,7 +199,7 @@ export default function AdminAddLesson() {
                 className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-[#0f766e] dark:hover:border-[#16A696] rounded-2xl bg-zinc-50 dark:bg-[#121214] transition-colors overflow-hidden group cursor-pointer"
               >
                 {imagePreview ? (
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                  <ImageWithSpinner width={500} height={500} src={imagePreview} alt="Preview" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                 ) : (
                   <div className="flex flex-col items-center justify-center text-center p-6">
                     <UploadCloud className="w-8 h-8 text-zinc-400 mb-3" />

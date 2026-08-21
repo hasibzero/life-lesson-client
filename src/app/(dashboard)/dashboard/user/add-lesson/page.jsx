@@ -1,4 +1,5 @@
 "use client";
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -256,7 +257,7 @@ export default function AddLesson() {
                 className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-[#16A696] dark:hover:border-[#16A696] rounded-xl bg-zinc-50 dark:bg-[#121214] transition-colors overflow-hidden group ${hasReachedLimit ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
               >
                 {imagePreview ? (
-                  <img
+                  <ImageWithSpinner width={500} height={500}
                     src={imagePreview}
                     alt="Preview"
                     className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"

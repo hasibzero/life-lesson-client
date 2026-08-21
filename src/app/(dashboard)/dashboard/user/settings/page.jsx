@@ -1,4 +1,5 @@
 "use client";
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -269,7 +270,7 @@ export default function ProfileSettings() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="relative">
             {currentImage ? (
-              <img
+              <ImageWithSpinner width={500} height={500}
                 src={currentImage}
                 alt="Profile Avatar"
                 className={`w-24 h-24 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700 shadow-sm transition-opacity ${isUploadingImage ? "opacity-40" : "opacity-100"}`}
@@ -410,7 +411,7 @@ export default function ProfileSettings() {
                   {/* Card Thumbnail */}
                   <div className="relative w-full h-44 bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                     {lesson.coverImage ? (
-                      <img
+                      <ImageWithSpinner width={500} height={500}
                         src={lesson.coverImage}
                         alt={lesson.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

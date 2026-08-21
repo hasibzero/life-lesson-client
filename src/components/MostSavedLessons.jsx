@@ -1,4 +1,5 @@
 'use client';
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -80,7 +81,7 @@ export const MostSavedLessons = () => {
                     {/* Thumbnail */}
                     <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 shrink-0 border border-zinc-100 dark:border-zinc-800">
                       {lesson.coverImage ? (
-                        <img
+                        <ImageWithSpinner width={500} height={500}
                           src={lesson.coverImage}
                           alt={lesson.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

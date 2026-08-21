@@ -1,4 +1,5 @@
 "use client";
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useState, useEffect } from "react";
 import { Card, Button, Chip, Spinner } from "@heroui/react";
@@ -162,14 +163,17 @@ export default function LessonsCard() {
                 </div>
 
                 <div className="mt-auto flex items-center gap-3">
-                  <img
-                    src={
-                      lesson?.creatorAvatar ||
-                      `https://ui-avatars.com/api/?name=${lesson.creatorName || "User"}&background=random`
-                    }
-                    alt="Creator"
-                    className="w-9 h-9 rounded-full object-cover border border-zinc-200 dark:border-zinc-700 shrink-0"
-                  />
+                  {lesson?.creatorAvatar ? (
+                    <ImageWithSpinner width={500} height={500}
+                      src={lesson.creatorAvatar}
+                      alt="Creator"
+                      className="w-9 h-9 rounded-full object-cover border border-zinc-200 dark:border-zinc-700 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-[#149788] text-white flex items-center justify-center font-bold text-sm shrink-0 border border-zinc-200 dark:border-zinc-700">
+                      {(lesson?.creatorName || "U").charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div className="flex flex-col min-w-0">
                     <span className="text-[13px] font-bold text-[#1a202c] dark:text-white leading-none mb-1 truncate">
                       {lesson?.creatorName || "Anonymous"}

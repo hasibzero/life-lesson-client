@@ -1,4 +1,5 @@
 "use client";
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -369,7 +370,7 @@ export default function AdminOverviewPage() {
                         #{index + 1}
                       </div>
 
-                      <img
+                      <ImageWithSpinner width={500} height={500}
                         src={
                           author.image ||
                           `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || "User")}&background=random`

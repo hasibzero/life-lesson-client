@@ -1,4 +1,5 @@
 'use client';
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -122,8 +123,8 @@ export const TopContributors = () => {
                 ? `/profile/${contributor.userId}` 
                 : `/lessons?search=${encodeURIComponent(contributor.name || '')}`;
 
-              const avatarUrl = contributor.image || 
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(contributor.name || 'User')}&background=149788&color=fff`;
+              const hasAvatar = !!contributor.image;
+              const avatarInitials = (contributor.name || 'U').charAt(0).toUpperCase();
 
               return (
                 <motion.div
@@ -138,11 +139,17 @@ export const TopContributors = () => {
                   >
                     {/* Avatar */}
                     <div className="relative mb-5">
-                      <img
-                        src={avatarUrl}
-                        alt={contributor.name || 'Contributor'}
-                        className="w-20 h-20 rounded-full object-cover border-2 border-zinc-100 dark:border-zinc-800 shadow-sm group-hover:scale-105 transition-transform duration-300"
-                      />
+                      {hasAvatar ? (
+                        <ImageWithSpinner width={500} height={500}
+                          src={contributor.image}
+                          alt={contributor.name || 'Contributor'}
+                          className="w-20 h-20 rounded-full object-cover border-2 border-zinc-100 dark:border-zinc-800 shadow-sm group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-full bg-[#149788] text-white flex items-center justify-center font-bold text-3xl border-2 border-zinc-100 dark:border-zinc-800 shadow-sm group-hover:scale-105 transition-transform duration-300">
+                          {avatarInitials}
+                        </div>
+                      )}
                       {index === 0 && (
                         <span 
                           className="absolute -bottom-1 -right-1 bg-amber-400 text-zinc-950 p-1 rounded-full shadow-xs" 

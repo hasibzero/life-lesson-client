@@ -1,4 +1,5 @@
 'use client';
+import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
@@ -204,7 +205,7 @@ export default function EditLessonModal({ isOpen, onClose, lesson, onUpdateSucce
               <div className="flex items-center gap-4">
                 <div className="w-24 h-16 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden shrink-0 flex items-center justify-center">
                   {imagePreview ? (
-                    <img src={imagePreview} alt="Cover Preview" className="w-full h-full object-cover" />
+                    <ImageWithSpinner width={500} height={500} src={imagePreview} alt="Cover Preview" className="w-full h-full object-cover" />
                   ) : (
                     <ImageIcon className="w-6 h-6 text-zinc-400" />
                   )}
