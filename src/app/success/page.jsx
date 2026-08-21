@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useRef } from "react";
+import React, { Suspense, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
@@ -15,47 +15,72 @@ function SuccessReceipt() {
   const { data: session, refetch } = authClient.useSession();
   const user = session?.user;
 
-  const hasUpgraded = useRef(false); // Prevents duplicate calls in React Strict Mode
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [upgradeComplete, setUpgradeComplete] = useState(false);
+  const hasTriggered = useRef(false);
+
   const backendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   useEffect(() => {
     const upgradeUserPlan = async () => {
-      if (!sessionId || !user?.email || hasUpgraded.current) return;
-      hasUpgraded.current = true;
-      const tokenRes = await authClient.token();
-    const token = tokenRes?.data?.token;
-    
+      // 1. Prevent multiple calls for the same checkout session
+      if (
+        !sessionId ||
+        !user ||
+        hasTriggered.current ||
+        upgradeComplete ||
+        sessionStorage.getItem(`upgraded_${sessionId}`)
+      ) {
+        return;
+      }
+
+      hasTriggered.current = true;
+      setIsUpgrading(true);
+
       try {
-        const response = await fetch(`${backendUrl}/api/users/upgrade-plan`, {
+        const tokenRes = await authClient.token();
+        const token = tokenRes?.data?.token;
+
+        // 2. Update Express MongoDB Database
+        await fetch(`${backendUrl}/api/users/upgrade-plan`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json",
-            'Authorization': `Bearer ${token}`
-           },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token || ""}`,
+          },
           body: JSON.stringify({
             email: user.email,
             userId: user.id,
           }),
         });
 
-        if (response.ok) {
-          // Refresh client-side auth session immediately
-          if (typeof refetch === "function") {
-            await refetch();
-          }
-          toast.success("Account successfully upgraded to Premium!");
-        } else {
-          console.error("Upgrade request failed:", await response.json());
+        // 3. Force Better Auth client to update its own session cookie in Next.js
+        if (typeof authClient.updateUser === "function") {
+          await authClient.updateUser({
+            plan: "premium",
+          });
         }
+
+        // 4. Invalidate local session cache and refetch active session
+        if (typeof refetch === "function") {
+          await refetch();
+        }
+
+        sessionStorage.setItem(`upgraded_${sessionId}`, "true");
+        setUpgradeComplete(true);
+        toast.success("Account successfully upgraded to Premium!");
       } catch (error) {
-        console.error("Server connection error during upgrade:", error);
+        console.error("Error during session upgrade:", error);
+      } finally {
+        setIsUpgrading(false);
       }
     };
 
-    if (user?.email && sessionId) {
+    if (user && sessionId && !upgradeComplete) {
       upgradeUserPlan();
     }
-  }, [sessionId, user?.email, user?.id, backendUrl, refetch]);
+  }, [sessionId, user, backendUrl, refetch, upgradeComplete]);
 
   if (!sessionId) {
     return (
@@ -69,8 +94,7 @@ function SuccessReceipt() {
         </h2>
 
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed mb-6">
-          This receipt page is only accessible directly after completing a
-          checkout session.
+          This receipt page is only accessible directly after completing a checkout session.
         </p>
 
         <Link
@@ -83,9 +107,7 @@ function SuccessReceipt() {
     );
   }
 
-  // 2. Format Transaction Data
   const orderNumber = `#DLL-${sessionId.slice(-8).toUpperCase()}`;
-
   const formattedDate = new Date().toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -97,7 +119,11 @@ function SuccessReceipt() {
       {/* Top Check Icon Badge */}
       <div className="w-14 h-14 rounded-full bg-emerald-100/70 dark:bg-emerald-500/10 flex items-center justify-center mb-6">
         <div className="w-8 h-8 rounded-full bg-[#10b981] flex items-center justify-center text-white shadow-xs">
-          <Check className="w-5 h-5 stroke-[3]" />
+          {isUpgrading ? (
+            <Spinner size="sm" color="white" />
+          ) : (
+            <Check className="w-5 h-5 stroke-[3]" />
+          )}
         </div>
       </div>
 
@@ -106,8 +132,9 @@ function SuccessReceipt() {
         Payment Successful
       </h1>
       <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed mb-6 px-2">
-        Thank you for your purchase. Your access to Digital Life Lessons is now
-        active.
+        {isUpgrading
+          ? "Activating your Premium benefits..."
+          : "Thank you for your purchase. Your access to Digital Life Lessons is now active."}
       </p>
 
       {/* Transaction Summary Card */}

@@ -11,20 +11,20 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.12,
-      delayChildren: 0.1,
+      staggerChildren: 0.1,
+      delayChildren: 0.05,
     },
   },
 };
 
 const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 16 },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.45,
-      ease: [0.25, 0.1, 0.25, 1],
+      duration: 0.35,
+      ease: 'easeOut',
     },
   },
 };
@@ -34,6 +34,8 @@ export const TopContributors = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchTopContributors = async () => {
       try {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
@@ -41,28 +43,37 @@ export const TopContributors = () => {
         
         if (response.ok) {
           const data = await response.json();
-          setContributors(data);
+          if (isMounted) {
+            // Filter out any null/undefined items
+            setContributors(Array.isArray(data) ? data.filter((c) => c && (c.name || c.userId)) : []);
+          }
         }
       } catch (error) {
         console.error("Error fetching top contributors:", error);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchTopContributors();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
     <section className="w-full py-16 bg-slate-50 dark:bg-zinc-950 transition-colors duration-300 font-sans">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-12">
         
-        {/* Animated Section Header */}
+        {/* Section Header */}
         <motion.div 
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.5 }}
+          viewport={{ once: true, margin: '-20px' }}
+          transition={{ duration: 0.4 }}
           className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4"
         >
           <div>
@@ -90,9 +101,9 @@ export const TopContributors = () => {
           </div>
         ) : contributors.length === 0 ? (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.96 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.3 }}
             className="w-full py-12 text-center text-zinc-500 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl"
           >
             <BookOpen className="w-8 h-8 mx-auto mb-2 text-zinc-400" />
@@ -103,14 +114,13 @@ export const TopContributors = () => {
           <motion.div 
             variants={containerVariants}
             initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-40px' }}
+            animate="visible"
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
           >
             {contributors.map((contributor, index) => {
               const profileHref = contributor.userId 
                 ? `/profile/${contributor.userId}` 
-                : `/lessons?search=${encodeURIComponent(contributor.name)}`;
+                : `/lessons?search=${encodeURIComponent(contributor.name || '')}`;
 
               const avatarUrl = contributor.image || 
                 `https://ui-avatars.com/api/?name=${encodeURIComponent(contributor.name || 'User')}&background=149788&color=fff`;
@@ -130,7 +140,7 @@ export const TopContributors = () => {
                     <div className="relative mb-5">
                       <img
                         src={avatarUrl}
-                        alt={contributor.name}
+                        alt={contributor.name || 'Contributor'}
                         className="w-20 h-20 rounded-full object-cover border-2 border-zinc-100 dark:border-zinc-800 shadow-sm group-hover:scale-105 transition-transform duration-300"
                       />
                       {index === 0 && (
@@ -145,7 +155,7 @@ export const TopContributors = () => {
 
                     {/* Name */}
                     <h3 className="text-[18px] font-bold text-[#1a202c] dark:text-white group-hover:text-[#149788] transition-colors line-clamp-1 mb-1">
-                      {contributor.name}
+                      {contributor.name || 'Anonymous Creator'}
                     </h3>
 
                     {/* Headline / Role */}
@@ -155,7 +165,7 @@ export const TopContributors = () => {
 
                     {/* Contribution Metric */}
                     <span className="mt-auto text-[12px] font-bold text-[#149788] bg-teal-50 dark:bg-teal-500/10 px-3 py-1 rounded-full border border-teal-200/50 dark:border-teal-500/20">
-                      {contributor.lessonsCount} {contributor.lessonsCount === 1 ? 'Lesson' : 'Lessons'} Published
+                      {contributor.lessonsCount || 0} {(contributor.lessonsCount || 0) === 1 ? 'Lesson' : 'Lessons'} Published
                     </span>
                   </Link>
                 </motion.div>
