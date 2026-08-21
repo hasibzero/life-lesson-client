@@ -193,7 +193,7 @@ export default function SignUp() {
       console.log("Sign up error:", error);
     } else {
       toast.success("Account created successfully!", { id: toastId });
-      router.push("/signin");
+      router.push("/");
     }
   };
 
