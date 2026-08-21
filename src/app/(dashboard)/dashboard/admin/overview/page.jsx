@@ -4,7 +4,7 @@ import ImageWithSpinner from "@/components/ImageWithSpinner";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
-import { Button, Spinner } from "@heroui/react";
+import { Spinner } from "@heroui/react";
 import {
   Users,
   BookOpen,
@@ -17,7 +17,7 @@ import {
   ShieldAlert,
   ArrowRight,
   Crown,
-  CalendarCheck
+  CalendarCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -36,92 +36,122 @@ export default function AdminOverviewPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
+  const rawBackendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const backendUrl = rawBackendUrl.replace(/\/$/, "");
+
+  // 👈 CHANGED: Fetch with Auto-Retry loop for cold starts and database sync
   useEffect(() => {
-    const fetchAdminOverview = async () => {
-      const tokenRes = await authClient.token();
-      const token = tokenRes?.data?.token;
-          
-      try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-        const [statsRes, reportsRes, allLessonsRes] = await Promise.all([
-          fetch(`${backendUrl}/api/admin/stats`,{
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }),
-          fetch(`${backendUrl}/api/admin/reports`,{
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }),
-          fetch(`${backendUrl}/api/lessons`,{
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          })
-        ]);
+    let isMounted = true;
 
-        let statsData = {};
-        if (statsRes.ok) {
-          statsData = await statsRes.json();
-        }
+    const fetchAdminOverviewWithRetry = async (retries = 3) => {
+      setIsLoading(true);
 
-        // Calculate fallback for open reports if not directly returned
-        let openReportsCount = statsData.reportedLessons;
-        if (openReportsCount === undefined && reportsRes.ok) {
-          const reportsData = await reportsRes.json();
-          if (Array.isArray(reportsData)) {
-            const pending = reportsData.filter(r => r.status?.toLowerCase() !== "resolved");
-            const unique = new Set(pending.map(r => r.lessonId?.toString()).filter(Boolean));
-            openReportsCount = unique.size || pending.length;
+      for (let i = 0; i < retries; i++) {
+        try {
+          const tokenRes = await authClient.token();
+          const token = tokenRes?.data?.token;
+
+          const headers = { "Content-Type": "application/json" };
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          const [statsRes, reportsRes] = await Promise.all([
+            fetch(`${backendUrl}/api/admin/stats`, { headers }),
+            fetch(`${backendUrl}/api/admin/reports`, { headers }),
+          ]);
+
+          if (statsRes.ok) {
+            const statsData = await statsRes.json();
+
+            // Safe fallback calculation for open reports if not returned
+            let openReportsCount = statsData.reportedLessons;
+            if (openReportsCount === undefined && reportsRes.ok) {
+              const reportsData = await reportsRes.json();
+              if (Array.isArray(reportsData)) {
+                const pending = reportsData.filter(
+                  (r) => r.status?.toLowerCase() !== "resolved",
+                );
+                const unique = new Set(
+                  pending.map((r) => r.lessonId?.toString()).filter(Boolean),
+                );
+                openReportsCount = unique.size || pending.length;
+              }
+            }
+
+            if (isMounted) {
+              setAnalytics({
+                totalUsers: statsData.totalUsers || 0,
+                totalPublicLessons:
+                  statsData.totalPublicLessons ?? (statsData.totalLessons || 0),
+                reportedLessons: openReportsCount || 0,
+                todayLessons: statsData.todayLessons || 0,
+                lessonGrowth: Array.isArray(statsData.lessonGrowth)
+                  ? statsData.lessonGrowth
+                  : [],
+                userGrowth: Array.isArray(statsData.userGrowth)
+                  ? statsData.userGrowth
+                  : [],
+                activeContributors: Array.isArray(statsData.activeContributors)
+                  ? statsData.activeContributors
+                  : [],
+              });
+              setIsLoading(false);
+            }
+            return;
           }
-        }
 
-        // Calculate fallback for public lessons count
-        let publicCount = statsData.totalPublicLessons ?? statsData.totalLessons;
-        if (!publicCount && allLessonsRes.ok) {
-          const lessonsData = await allLessonsRes.json();
-          if (Array.isArray(lessonsData)) {
-            publicCount = lessonsData.filter(l => l.visibility === "Public" || l.isReviewed).length || lessonsData.length;
+          // Delay before next retry attempt
+          if (i < retries - 1) {
+            await new Promise((res) => setTimeout(res, 2000));
           }
+        } catch (error) {
+          if (i === retries - 1) {
+            console.error(
+              "Error fetching admin analytics after retries:",
+              error,
+            );
+          }
+          await new Promise((res) => setTimeout(res, 2000));
         }
+      }
 
-        setAnalytics({
-          totalUsers: statsData.totalUsers || 0,
-          totalPublicLessons: publicCount || 0,
-          reportedLessons: openReportsCount || 0,
-          todayLessons: statsData.todayLessons || 0,
-          lessonGrowth: Array.isArray(statsData.lessonGrowth) ? statsData.lessonGrowth : [],
-          userGrowth: Array.isArray(statsData.userGrowth) ? statsData.userGrowth : [],
-          activeContributors: Array.isArray(statsData.activeContributors) ? statsData.activeContributors : [],
-        });
-      } catch (error) {
-        console.error("Error fetching admin analytics:", error);
-        toast.error("Server connection error.");
-      } finally {
+      if (isMounted) {
+        toast.error("Failed to load platform analytics. Please refresh.");
         setIsLoading(false);
       }
     };
 
-    fetchAdminOverview();
-  }, []);
+    fetchAdminOverviewWithRetry();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [backendUrl]);
 
   const firstName = user?.name ? user.name.split(" ")[0] : "Admin";
 
-  const maxLessonGrowth = Math.max(...(analytics.lessonGrowth.map((d) => d.count) || [1]), 1);
-  const maxUserGrowth = Math.max(...(analytics.userGrowth.map((d) => d.count) || [1]), 1);
+  const maxLessonGrowth = Math.max(
+    ...(analytics.lessonGrowth.map((d) => d.count) || [1]),
+    1,
+  );
+  const maxUserGrowth = Math.max(
+    ...(analytics.userGrowth.map((d) => d.count) || [1]),
+    1,
+  );
 
   if (isLoading) {
     return (
-      <div className="w-full min-h-[60vh] flex items-center justify-center">
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-3">
         <Spinner size="lg" color="current" className="text-[#0f766e]" />
+        <p className="text-sm text-zinc-500 animate-pulse">
+          Loading platform vitals...
+        </p>
       </div>
     );
   }
 
   return (
     <div className="w-full flex flex-col gap-10 font-sans pb-16">
-      
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -129,7 +159,8 @@ export default function AdminOverviewPage() {
             Platform Analytics & Overview
           </h1>
           <p className="text-[15px] text-zinc-600 dark:text-zinc-400 mt-1">
-            Real-time platform vitals, user adoption trends, and moderation metrics for {firstName}.
+            Real-time platform vitals, user adoption trends, and moderation
+            metrics for {firstName}.
           </p>
         </div>
 
@@ -145,7 +176,6 @@ export default function AdminOverviewPage() {
 
       {/* Primary Key Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        
         {/* Total Users */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -202,7 +232,9 @@ export default function AdminOverviewPage() {
               {analytics.reportedLessons.toLocaleString()}
             </h2>
             <p className="text-[13px] font-semibold text-red-600 dark:text-red-400 mt-2">
-              {analytics.reportedLessons > 0 ? "Requires moderation" : "All clean"}
+              {analytics.reportedLessons > 0
+                ? "Requires moderation"
+                : "All clean"}
             </p>
           </div>
         </div>
@@ -222,16 +254,15 @@ export default function AdminOverviewPage() {
               {analytics.todayLessons.toLocaleString()}
             </h2>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-1 font-medium">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Published in last 24h
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Published in
+              last 24h
             </p>
           </div>
         </div>
-
       </div>
 
       {/* Analytics Graphs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
         {/* Graph 1: Lesson Creation Growth */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-6">
@@ -243,22 +274,32 @@ export default function AdminOverviewPage() {
                 <h3 className="text-base font-bold text-[#1a202c] dark:text-white">
                   Lesson Publishing Trend
                 </h3>
-                <span className="text-[12px] text-zinc-400">Past 7 days creation rate</span>
+                <span className="text-[12px] text-zinc-400">
+                  Past 7 days creation rate
+                </span>
               </div>
             </div>
           </div>
 
           <div className="h-44 flex items-end justify-between gap-3 pt-6 px-2 border-b border-zinc-100 dark:border-zinc-800">
             {analytics.lessonGrowth.map((item, idx) => {
-              const barHeight = Math.max((item.count / maxLessonGrowth) * 100, 8);
+              const barHeight = Math.max(
+                (item.count / maxLessonGrowth) * 100,
+                8,
+              );
               return (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
+                <div
+                  key={idx}
+                  className="flex-1 flex flex-col items-center gap-2 group h-full justify-end"
+                >
                   <span className="text-[11px] font-bold text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity">
                     {item.count}
                   </span>
                   <div
                     className={`w-full max-w-[36px] rounded-t-lg transition-all duration-500 ${
-                      item.count > 0 ? "bg-[#0f766e] dark:bg-[#16A696]" : "bg-zinc-100 dark:bg-zinc-800"
+                      item.count > 0
+                        ? "bg-[#0f766e] dark:bg-[#16A696]"
+                        : "bg-zinc-100 dark:bg-zinc-800"
                     }`}
                     style={{ height: `${barHeight}%` }}
                   />
@@ -276,7 +317,8 @@ export default function AdminOverviewPage() {
               Daily Lessons Added
             </span>
             <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-              {analytics.lessonGrowth.reduce((acc, c) => acc + c.count, 0)} total this week
+              {analytics.lessonGrowth.reduce((acc, c) => acc + c.count, 0)}{" "}
+              total this week
             </span>
           </div>
         </div>
@@ -292,7 +334,9 @@ export default function AdminOverviewPage() {
                 <h3 className="text-base font-bold text-[#1a202c] dark:text-white">
                   User Registration Trend
                 </h3>
-                <span className="text-[12px] text-zinc-400">Past 7 days member growth</span>
+                <span className="text-[12px] text-zinc-400">
+                  Past 7 days member growth
+                </span>
               </div>
             </div>
           </div>
@@ -301,13 +345,18 @@ export default function AdminOverviewPage() {
             {analytics.userGrowth.map((item, idx) => {
               const barHeight = Math.max((item.count / maxUserGrowth) * 100, 8);
               return (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
+                <div
+                  key={idx}
+                  className="flex-1 flex flex-col items-center gap-2 group h-full justify-end"
+                >
                   <span className="text-[11px] font-bold text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity">
                     {item.count}
                   </span>
                   <div
                     className={`w-full max-w-[36px] rounded-t-lg transition-all duration-500 ${
-                      item.count > 0 ? "bg-indigo-600 dark:bg-indigo-500" : "bg-zinc-100 dark:bg-zinc-800"
+                      item.count > 0
+                        ? "bg-indigo-600 dark:bg-indigo-500"
+                        : "bg-zinc-100 dark:bg-zinc-800"
                     }`}
                     style={{ height: `${barHeight}%` }}
                   />
@@ -325,16 +374,15 @@ export default function AdminOverviewPage() {
               New User Signups
             </span>
             <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-              {analytics.userGrowth.reduce((acc, c) => acc + c.count, 0)} users this week
+              {analytics.userGrowth.reduce((acc, c) => acc + c.count, 0)} users
+              this week
             </span>
           </div>
         </div>
-
       </div>
 
       {/* Row 3: Most Active Contributors & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
         {/* Most Active Contributors */}
         <div className="lg:col-span-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div>
@@ -347,7 +395,9 @@ export default function AdminOverviewPage() {
                   <h3 className="text-lg font-bold text-[#1a202c] dark:text-white">
                     Top Active Contributors
                   </h3>
-                  <p className="text-[12px] text-zinc-400">Authors with the highest lesson contributions</p>
+                  <p className="text-[12px] text-zinc-400">
+                    Authors with the highest lesson contributions
+                  </p>
                 </div>
               </div>
               <Link
@@ -362,7 +412,7 @@ export default function AdminOverviewPage() {
               <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {analytics.activeContributors.map((author, index) => (
                   <div
-                    key={`${author.userId || 'author'}-${index}`}
+                    key={`${author.userId || "author"}-${index}`}
                     className="py-3.5 flex items-center justify-between gap-4 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 rounded-xl px-2 transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -370,7 +420,9 @@ export default function AdminOverviewPage() {
                         #{index + 1}
                       </div>
 
-                      <ImageWithSpinner width={500} height={500}
+                      <ImageWithSpinner
+                        width={500}
+                        height={500}
                         src={
                           author.image ||
                           `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name || "User")}&background=random`
@@ -398,7 +450,8 @@ export default function AdminOverviewPage() {
 
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="px-3 py-1 rounded-full text-[12px] font-extrabold bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400 border border-teal-200/50 dark:border-teal-500/20">
-                        {author.lessonsCount} {author.lessonsCount === 1 ? "Lesson" : "Lessons"}
+                        {author.lessonsCount}{" "}
+                        {author.lessonsCount === 1 ? "Lesson" : "Lessons"}
                       </span>
                     </div>
                   </div>
@@ -406,7 +459,9 @@ export default function AdminOverviewPage() {
               </div>
             ) : (
               <div className="py-8 text-center text-zinc-500">
-                <p className="text-[14px]">No author submissions recorded yet.</p>
+                <p className="text-[14px]">
+                  No author submissions recorded yet.
+                </p>
               </div>
             )}
           </div>
@@ -418,7 +473,7 @@ export default function AdminOverviewPage() {
             <h3 className="text-lg font-bold text-[#1a202c] dark:text-white mb-4">
               Quick Shortcuts
             </h3>
-            
+
             <div className="flex flex-col gap-3">
               <Link
                 href="/dashboard/admin/manage-lessons"
@@ -431,7 +486,9 @@ export default function AdminOverviewPage() {
                   <span className="text-[14px] font-bold text-zinc-800 dark:text-zinc-100 group-hover:text-[#16A696] transition-colors">
                     Manage Lessons
                   </span>
-                  <span className="text-[12px] text-zinc-500">Feature, review, or delete</span>
+                  <span className="text-[12px] text-zinc-500">
+                    Feature, review, or delete
+                  </span>
                 </div>
                 <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
               </Link>
@@ -447,7 +504,9 @@ export default function AdminOverviewPage() {
                   <span className="text-[14px] font-bold text-zinc-800 dark:text-zinc-100 group-hover:text-[#16A696] transition-colors">
                     User Management
                   </span>
-                  <span className="text-[12px] text-zinc-500">Roles and account statuses</span>
+                  <span className="text-[12px] text-zinc-500">
+                    Roles and account statuses
+                  </span>
                 </div>
                 <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
               </Link>
@@ -463,16 +522,16 @@ export default function AdminOverviewPage() {
                   <span className="text-[14px] font-bold text-zinc-800 dark:text-zinc-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
                     Reported Content
                   </span>
-                  <span className="text-[12px] text-zinc-500">Moderate open flags</span>
+                  <span className="text-[12px] text-zinc-500">
+                    Moderate open flags
+                  </span>
                 </div>
                 <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
           </div>
         </div>
-
       </div>
-
     </div>
   );
 }
