@@ -46,6 +46,9 @@ export default function AdminAddLesson() {
         : 'Publishing official lesson...'
     );
 
+    const tokenRes = await authClient.token();
+    const token = tokenRes?.data?.token;
+
     let uploadedImageUrl = "";
 
     if (data.coverImage && data.coverImage.length > 0) {
@@ -76,8 +79,8 @@ export default function AdminAddLesson() {
     }
 
     const lessonPayload = {
-      title: data.title,
-      description: data.description,
+      title: data.title?.trim(),
+      description: data.description?.trim(),
       category: data.category,
       emotionalTone: data.emotionalTone || "Motivational", 
       visibility: actionRef.current === 'draft' ? 'Draft' : (data.visibility || 'Public'),
@@ -85,17 +88,18 @@ export default function AdminAddLesson() {
       creatorId: user?.id || null, 
       coverImage: uploadedImageUrl, 
       isFeatured: isFeatured,
-      // Auto-reviewed flag for admin creation
       isReviewed: true,
     };
     
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'; 
+    const rawBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'; 
+    const backendUrl = rawBackendUrl.replace(/\/$/, "");
 
     try {
       const response = await fetch(`${backendUrl}/api/add-lesson`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(lessonPayload),
       });
@@ -112,7 +116,8 @@ export default function AdminAddLesson() {
         setAccessLevel('Free');
         setIsFeatured(false);
       } else {
-        toast.error("Failed to save lesson.", { id: toastId });
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.message || "Failed to save lesson.", { id: toastId });
       }
     } catch (error) {
       console.error("Submission error:", error);
@@ -155,7 +160,7 @@ export default function AdminAddLesson() {
             </label>
             <input 
               type="text" 
-              placeholder="e.g., The Architecture of Deep Focus"
+              placeholder="e.g., The Architecture of Deep Focus" 
               className={`w-full bg-transparent border ${errors.title ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'} rounded-xl px-4 py-3 text-[15px] text-zinc-900 dark:text-white outline-none focus:border-[#0f766e] dark:focus:border-[#16A696] transition-colors`}
               {...register("title", { required: "Title is required" })}
             />
@@ -173,8 +178,8 @@ export default function AdminAddLesson() {
               </p>
             </div>
             <textarea 
-              placeholder="Draft comprehensive lesson wisdom here..."
-              rows={9}
+              placeholder="Draft comprehensive lesson wisdom here..." 
+              rows={9} 
               className={`w-full bg-transparent border ${errors.description ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'} rounded-xl px-4 py-3 text-[15px] text-zinc-900 dark:text-white outline-none focus:border-[#0f766e] dark:focus:border-[#16A696] transition-colors resize-none`}
               {...register("description", { required: "Description is required" })}
             />
@@ -189,9 +194,9 @@ export default function AdminAddLesson() {
             <div className="relative">
               <input 
                 type="file" 
-                id="coverUpload"
-                accept="image/*"
-                className="hidden"
+                id="coverUpload" 
+                accept="image/*" 
+                className="hidden" 
                 {...register("coverImage", { onChange: handleImageChange })}
               />
               <label 
@@ -336,8 +341,8 @@ export default function AdminAddLesson() {
               </div>
               <input 
                 type="checkbox" 
-                checked={isFeatured}
-                onChange={(e) => setIsFeatured(e.target.checked)}
+                checked={isFeatured} 
+                onChange={(e) => setIsFeatured(e.target.checked)} 
                 className="w-5 h-5 accent-[#0f766e] rounded cursor-pointer"
               />
             </div>
@@ -354,9 +359,9 @@ export default function AdminAddLesson() {
             </div>
 
             <button 
-              type="submit"
-              disabled={isSubmitting}
-              onClick={() => actionRef.current = 'draft'}
+              type="submit" 
+              disabled={isSubmitting} 
+              onClick={() => actionRef.current = 'draft'} 
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold text-[14px] hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting && submitType === 'draft' ? (
@@ -367,9 +372,9 @@ export default function AdminAddLesson() {
             </button>
             
             <button 
-              type="submit"
-              disabled={isSubmitting}
-              onClick={() => actionRef.current = 'publish'}
+              type="submit" 
+              disabled={isSubmitting} 
+              onClick={() => actionRef.current = 'publish'} 
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold text-[14px] transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
             >
               {isSubmitting && submitType === 'publish' ? (
