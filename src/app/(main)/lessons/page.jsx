@@ -5,7 +5,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { Card, Button, Chip, Spinner } from "@heroui/react";
+import { Card, Chip, Spinner } from "@heroui/react";
 import toast from "react-hot-toast";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -30,7 +30,9 @@ function LessonsContent() {
   const { data: session } = authClient.useSession();
   const user = session?.user;
   const isPremiumUser =
-    user?.role === "admin" || user?.plan === "premium" || user?.isPremium;
+    user?.role?.toLowerCase() === "admin" ||
+    user?.plan?.toLowerCase() === "premium" ||
+    Boolean(user?.isPremium);
 
   const [lessons, setLessons] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,8 +60,9 @@ function LessonsContent() {
   const [totalPages, setTotalPages] = useState(1);
   const limitPerPage = 8;
 
-  const backendUrl =
+  const rawBackendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const backendUrl = rawBackendUrl.replace(/\/$/, "");
 
   // Debounce search query input (300ms)
   useEffect(() => {
@@ -85,75 +88,83 @@ function LessonsContent() {
     window.history.replaceState(null, "", newUrl);
   }, [debouncedSearch, selectedCategory, selectedTone, currentPage, pathname]);
 
-  // Query-based fetch calling your backend
+  // Query-based fetch with cold-start retry
   useEffect(() => {
     let isSubscribed = true;
 
-    const fetchLessons = async () => {
+    const fetchLessonsWithRetry = async (retries = 3) => {
       setIsLoading(true);
 
-      try {
-        let token = null;
-        if (user) {
-          try {
-            const tokenRes = await authClient.token();
-            token = tokenRes?.data?.token;
-          } catch (err) {
-            console.warn("Could not fetch auth token for guest user:", err);
-          }
-        }
-
-        const queryParams = new URLSearchParams({
-          search: debouncedSearch.trim(),
-          category: selectedCategory,
-          emotionalTone: selectedTone,
-          visibility: "Public",
-          sortBy: "newest",
-          page: currentPage.toString(),
-          limit: limitPerPage.toString(),
-        });
-
-        const headers = {};
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(
-          `${backendUrl}/api/lessons?${queryParams.toString()}`,
-          {
-            headers,
-          },
-        );
-
-        if (response.ok) {
-          const result = await response.json();
-
-          if (isSubscribed) {
-            if (result && Array.isArray(result.data)) {
-              setLessons(result.data);
-              setTotalPages(result.totalPages || 1);
-            } else if (Array.isArray(result)) {
-              setLessons(result);
-              setTotalPages(Math.ceil(result.length / limitPerPage) || 1);
-            } else {
-              setLessons([]);
-              setTotalPages(1);
+      for (let i = 0; i < retries; i++) {
+        try {
+          let token = null;
+          if (user) {
+            try {
+              const tokenRes = await authClient.token();
+              token = tokenRes?.data?.token;
+            } catch (err) {
+              console.warn("Could not fetch auth token for guest user:", err);
             }
           }
-        } else {
-          toast.error("Failed to fetch lessons.");
+
+          const queryParams = new URLSearchParams({
+            search: debouncedSearch.trim(),
+            category: selectedCategory,
+            emotionalTone: selectedTone,
+            visibility: "Public",
+            isReviewed: "true", // 👈 Ensure query requests only reviewed content
+            sortBy: "newest",
+            page: currentPage.toString(),
+            limit: limitPerPage.toString(),
+          });
+
+          const headers = { "Content-Type": "application/json" };
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+          }
+
+          const response = await fetch(
+            `${backendUrl}/api/lessons?${queryParams.toString()}`,
+            { headers },
+          );
+
+          if (response.ok) {
+            const result = await response.json();
+
+            if (isSubscribed) {
+              if (result && Array.isArray(result.data)) {
+                setLessons(result.data);
+                setTotalPages(result.totalPages || 1);
+              } else if (Array.isArray(result)) {
+                setLessons(result);
+                setTotalPages(Math.ceil(result.length / limitPerPage) || 1);
+              } else {
+                setLessons([]);
+                setTotalPages(1);
+              }
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          if (i < retries - 1) {
+            await new Promise((res) => setTimeout(res, 2000));
+          }
+        } catch (error) {
+          if (i === retries - 1) {
+            console.error("Error fetching lessons after retries:", error);
+          }
+          await new Promise((res) => setTimeout(res, 2000));
         }
-      } catch (error) {
-        console.error("Error fetching lessons:", error);
-        toast.error("Server connection error.");
-      } finally {
-        if (isSubscribed) {
-          setIsLoading(false);
-        }
+      }
+
+      if (isSubscribed) {
+        toast.error("Failed to load lessons. Please refresh.");
+        setIsLoading(false);
       }
     };
 
-    fetchLessons();
+    fetchLessonsWithRetry();
 
     return () => {
       isSubscribed = false;
