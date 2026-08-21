@@ -42,60 +42,59 @@ export default function AdminManageLessonsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 7;
 
-  const backendUrl =
+  const rawBackendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const backendUrl = rawBackendUrl.replace(/\/$/, "");
 
-  // Fetch Lessons & Reports in Parallel
-  const fetchData = async () => {
-    try {
-      const tokenRes = await authClient.token();
-      const token = tokenRes?.data?.token;
+  // 👈 CHANGED: Fetch with Auto-Retry for cold starts and 500 errors
+  const fetchDataWithRetry = async (retries = 3) => {
+    let isSuccess = false;
 
-      if (!token) {
-        console.warn("⚠️ Warning: Token is missing! The browser might be fetching too fast.");
+    for (let i = 0; i < retries; i++) {
+      try {
+        const tokenRes = await authClient.token();
+        const token = tokenRes?.data?.token;
+
+        const headers = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const [lessonsRes, reportsRes] = await Promise.all([
+          fetch(`${backendUrl}/api/lessons/admin-all`, { headers }),
+          fetch(`${backendUrl}/api/admin/reports`, { headers }),
+        ]);
+
+        // If backend responds successfully, parse and exit loop
+        if (lessonsRes.ok && reportsRes.ok) {
+          const [lessonsData, reportsData] = await Promise.all([
+            lessonsRes.json(),
+            reportsRes.json(),
+          ]);
+
+          setLessons(Array.isArray(lessonsData) ? lessonsData : []);
+          setReports(Array.isArray(reportsData) ? reportsData : []);
+          isSuccess = true;
+          break;
+        }
+
+        // If status is 500 or waking up, retry
+        if (i < retries - 1) {
+          await new Promise((res) => setTimeout(res, 2000));
+        }
+      } catch (err) {
+        if (i === retries - 1)
+          console.error("Admin fetch failed after retries:", err);
+        await new Promise((res) => setTimeout(res, 2000));
       }
-
-      const [lessonsRes, reportsRes] = await Promise.all([
-        fetch(`${backendUrl}/api/lessons/admin-all`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        fetch(`${backendUrl}/api/admin/reports`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-      ]);
-
-      if (lessonsRes.ok) {
-        const lessonsData = await lessonsRes.json();
-        setLessons(lessonsData);
-      } else {
-        // 🚨 THIS WILL TELL US THE EXACT ERROR
-        const errorText = await lessonsRes.text();
-        console.error("🚨 Backend Error (Lessons):", lessonsRes.status, errorText);
-        toast.error(`Failed to load lessons: ${lessonsRes.status}`);
-      }
-
-      if (reportsRes.ok) {
-        const reportsData = await reportsRes.json();
-        setReports(reportsData);
-      } else {
-        // 🚨 THIS WILL TELL US THE EXACT ERROR
-        const errorText = await reportsRes.text();
-        console.error("🚨 Backend Error (Reports):", reportsRes.status, errorText);
-      }
-    } catch (error) {
-      console.error("Error fetching lesson management data:", error);
-      toast.error("Server connection error.");
-    } finally {
-      setIsLoading(false);
     }
+
+    if (!isSuccess) {
+      toast.error("Failed to load platform data. Please refresh.");
+    }
+    setIsLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchDataWithRetry();
   }, [backendUrl]);
 
   // Set of lesson IDs that currently have unresolved reports
@@ -105,7 +104,7 @@ export default function AdminManageLessonsPage() {
       .map((r) => String(r.lessonId)),
   );
 
-  // 1. Toggle Featured Status (Shows on Home Page Featured Section)
+  // 1. Toggle Featured Status
   const handleToggleFeatured = async (lessonId, currentFeatured) => {
     const newFeatured = !currentFeatured;
     const tokenRes = await authClient.token();
@@ -265,8 +264,11 @@ export default function AdminManageLessonsPage() {
 
   if (isLoading) {
     return (
-      <div className="w-full min-h-[60vh] flex items-center justify-center">
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-3">
         <Spinner size="lg" color="current" className="text-[#0f766e]" />
+        <p className="text-sm text-zinc-500 animate-pulse">
+          Loading platform records...
+        </p>
       </div>
     );
   }
@@ -294,7 +296,6 @@ export default function AdminManageLessonsPage() {
 
       {/* Stats Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Public Lessons Count */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
@@ -314,7 +315,6 @@ export default function AdminManageLessonsPage() {
           </div>
         </div>
 
-        {/* Private / Draft Lessons Count */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
@@ -334,7 +334,6 @@ export default function AdminManageLessonsPage() {
           </div>
         </div>
 
-        {/* Flagged / Reported Content Count */}
         <div className="bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-900/40 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[13px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
@@ -354,7 +353,6 @@ export default function AdminManageLessonsPage() {
           </div>
         </div>
 
-        {/* Featured Modules Count */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
@@ -377,7 +375,6 @@ export default function AdminManageLessonsPage() {
 
       {/* Search & Multi-filter Bar */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col lg:flex-row items-center gap-4">
-        {/* Search Input */}
         <div className="relative flex-1 w-full flex items-center">
           <Search className="absolute left-4 w-4 h-4 text-zinc-400" />
           <input
@@ -392,7 +389,6 @@ export default function AdminManageLessonsPage() {
           />
         </div>
 
-        {/* Category Filter */}
         <div className="w-full sm:w-auto">
           <select
             value={selectedCategory}
@@ -411,7 +407,6 @@ export default function AdminManageLessonsPage() {
           </select>
         </div>
 
-        {/* Visibility Filter */}
         <div className="w-full sm:w-auto">
           <select
             value={selectedVisibility}
@@ -428,7 +423,6 @@ export default function AdminManageLessonsPage() {
           </select>
         </div>
 
-        {/* Flag / Moderation Filter */}
         <div className="w-full sm:w-auto">
           <select
             value={selectedFlagFilter}
@@ -446,7 +440,6 @@ export default function AdminManageLessonsPage() {
           </select>
         </div>
 
-        {/* Reset Filters */}
         {(searchQuery ||
           selectedCategory !== "All" ||
           selectedVisibility !== "All" ||
@@ -490,13 +483,11 @@ export default function AdminManageLessonsPage() {
                     key={lesson._id}
                     className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors"
                   >
-                    {/* Title & Tags */}
                     <td className="py-4 px-6 font-bold text-zinc-900 dark:text-white">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2">
                           <span className="line-clamp-1">{lesson.title}</span>
 
-                          {/* Featured Tag */}
                           {lesson.isFeatured && (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200/50 dark:border-amber-500/20 shrink-0">
                               <Star className="w-3 h-3 fill-amber-500 text-amber-500" />{" "}
@@ -504,7 +495,6 @@ export default function AdminManageLessonsPage() {
                             </span>
                           )}
 
-                          {/* Flagged Alert Tag */}
                           {isFlagged && (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200/50 dark:border-red-500/20 shrink-0">
                               <AlertTriangle className="w-3 h-3 text-red-500" />{" "}
@@ -521,19 +511,16 @@ export default function AdminManageLessonsPage() {
                       </div>
                     </td>
 
-                    {/* Author */}
                     <td className="py-4 px-6 text-zinc-600 dark:text-zinc-300 font-medium whitespace-nowrap">
                       {lesson.creatorName || "Anonymous"}
                     </td>
 
-                    {/* Category Badge */}
                     <td className="py-4 px-6 whitespace-nowrap">
                       <span className="inline-flex px-3 py-1 rounded-full text-[12px] font-semibold bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400 border border-teal-200/50 dark:border-teal-500/20">
                         {lesson.category || "General"}
                       </span>
                     </td>
 
-                    {/* Visibility */}
                     <td className="py-4 px-6 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold ${
@@ -549,7 +536,6 @@ export default function AdminManageLessonsPage() {
                       </span>
                     </td>
 
-                    {/* Moderation / Review Status */}
                     <td className="py-4 px-6 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold ${
@@ -570,15 +556,12 @@ export default function AdminManageLessonsPage() {
                       </span>
                     </td>
 
-                    {/* Created Date */}
                     <td className="py-4 px-6 text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap">
                       {formatDate(lesson.createdAt)}
                     </td>
 
-                    {/* Actions Menu */}
                     <td className="py-4 px-6 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
-                        {/* Make Featured Toggle */}
                         <button
                           onClick={() =>
                             handleToggleFeatured(lesson._id, lesson.isFeatured)
@@ -599,7 +582,6 @@ export default function AdminManageLessonsPage() {
                           />
                         </button>
 
-                        {/* Mark Reviewed Toggle */}
                         <button
                           onClick={() =>
                             handleToggleReviewed(lesson._id, lesson.isReviewed)
@@ -618,7 +600,6 @@ export default function AdminManageLessonsPage() {
                           <ShieldCheck className="w-4 h-4" />
                         </button>
 
-                        {/* View Lesson */}
                         <Link href={`/lessons/${lesson._id}`} target="_blank">
                           <button
                             title="View Public Lesson"
@@ -628,7 +609,6 @@ export default function AdminManageLessonsPage() {
                           </button>
                         </Link>
 
-                        {/* Delete Lesson Button (Opens Modal) */}
                         <button
                           onClick={() => setLessonToDelete(lesson)}
                           title="Delete Inappropriate Lesson"
@@ -708,7 +688,6 @@ export default function AdminManageLessonsPage() {
             className="w-full max-w-[420px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col items-center text-center relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button */}
             <button
               onClick={() => setLessonToDelete(null)}
               disabled={isDeleting}
@@ -717,12 +696,10 @@ export default function AdminManageLessonsPage() {
               <X className="w-4 h-4" />
             </button>
 
-            {/* Warning Icon Badge */}
             <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center mb-4 border border-red-200/60 dark:border-red-500/20">
               <AlertTriangle className="w-6 h-6" />
             </div>
 
-            {/* Modal Content */}
             <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
               Delete Lesson?
             </h2>
@@ -735,7 +712,6 @@ export default function AdminManageLessonsPage() {
               resolved.
             </p>
 
-            {/* Action Buttons */}
             <div className="w-full flex items-center gap-3">
               <button
                 type="button"
