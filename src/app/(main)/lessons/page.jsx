@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import ImageWithSpinner from "@/components/ImageWithSpinner";
 
 import React, { useState, useEffect, Suspense } from "react";
@@ -87,12 +87,22 @@ function LessonsContent() {
 
   // Query-based fetch calling your backend
   useEffect(() => {
+    let isSubscribed = true;
+
     const fetchLessons = async () => {
       setIsLoading(true);
-      const tokenRes = await authClient.token();
-      const token = tokenRes?.data?.token;
-      
+
       try {
+        let token = null;
+        if (user) {
+          try {
+            const tokenRes = await authClient.token();
+            token = tokenRes?.data?.token;
+          } catch (err) {
+            console.warn("Could not fetch auth token for guest user:", err);
+          }
+        }
+
         const queryParams = new URLSearchParams({
           search: debouncedSearch.trim(),
           category: selectedCategory,
@@ -103,26 +113,32 @@ function LessonsContent() {
           limit: limitPerPage.toString(),
         });
 
+        const headers = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
         const response = await fetch(
-          `${backendUrl}/api/lessons?${queryParams.toString()}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }
+          `${backendUrl}/api/lessons?${queryParams.toString()}`,
+          {
+            headers,
+          },
         );
 
         if (response.ok) {
           const result = await response.json();
 
-          if (result && Array.isArray(result.data)) {
-            setLessons(result.data);
-            setTotalPages(result.totalPages || 1);
-          } else if (Array.isArray(result)) {
-            setLessons(result);
-            setTotalPages(Math.ceil(result.length / limitPerPage) || 1);
-          } else {
-            setLessons([]);
-            setTotalPages(1);
+          if (isSubscribed) {
+            if (result && Array.isArray(result.data)) {
+              setLessons(result.data);
+              setTotalPages(result.totalPages || 1);
+            } else if (Array.isArray(result)) {
+              setLessons(result);
+              setTotalPages(Math.ceil(result.length / limitPerPage) || 1);
+            } else {
+              setLessons([]);
+              setTotalPages(1);
+            }
           }
         } else {
           toast.error("Failed to fetch lessons.");
@@ -131,11 +147,17 @@ function LessonsContent() {
         console.error("Error fetching lessons:", error);
         toast.error("Server connection error.");
       } finally {
-        setIsLoading(false);
+        if (isSubscribed) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchLessons();
+
+    return () => {
+      isSubscribed = false;
+    };
   }, [
     backendUrl,
     debouncedSearch,
@@ -143,6 +165,7 @@ function LessonsContent() {
     selectedTone,
     currentPage,
     limitPerPage,
+    user,
   ]);
 
   const formatDate = (dateString) => {
@@ -298,7 +321,9 @@ function LessonsContent() {
 
                     <div className="mt-auto flex items-center gap-3">
                       {lesson?.creatorAvatar ? (
-                        <ImageWithSpinner width={500} height={500}
+                        <ImageWithSpinner
+                          width={500}
+                          height={500}
                           src={lesson?.creatorAvatar}
                           alt="Creator"
                           className="w-9 h-9 rounded-full object-cover border border-zinc-200 dark:border-zinc-700 shrink-0"
