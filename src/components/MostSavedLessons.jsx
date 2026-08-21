@@ -20,23 +20,48 @@ export const MostSavedLessons = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMostSaved = async () => {
-      try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
-        const res = await fetch(`${backendUrl}/api/lessons/most-saved`);
+    let isMounted = true;
 
-        if (res.ok) {
-          const data = await res.json();
-          setLessons(data);
+    const fetchMostSavedWithRetry = async (retries = 3) => {
+      try {
+        const rawBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+        const backendUrl = rawBackendUrl.replace(/\/$/, "");
+
+        let response;
+
+        // 👈 Auto-Retry Loop for Backend Cold Starts
+        for (let i = 0; i < retries; i++) {
+          try {
+            response = await fetch(`${backendUrl}/api/lessons/most-saved`);
+            if (response.ok) break; // If successful, exit the retry loop
+          } catch (err) {
+            if (i === retries - 1) throw err; // If last attempt, throw error
+            await new Promise((res) => setTimeout(res, 2000)); // Wait 2 seconds
+          }
+        }
+
+        if (response && response.ok) {
+          const data = await response.json();
+          if (isMounted) {
+            setLessons(Array.isArray(data) ? data : []);
+          }
+        } else {
+          console.error("Backend returned non-OK status:", response?.status);
         }
       } catch (error) {
         console.error('Error fetching most saved lessons:', error);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    fetchMostSaved();
+    fetchMostSavedWithRetry();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
@@ -55,8 +80,9 @@ export const MostSavedLessons = () => {
 
         {/* Content Area */}
         {isLoading ? (
-          <div className="w-full min-h-[200px] flex items-center justify-center">
+          <div className="w-full min-h-[200px] flex flex-col items-center justify-center gap-4">
             <Spinner size="lg" color="current" className="text-[#149788]" />
+            <p className="text-sm text-zinc-500 animate-pulse">Connecting to server...</p>
           </div>
         ) : lessons.length === 0 ? (
           <div className="w-full py-10 text-center text-zinc-500 bg-slate-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl">

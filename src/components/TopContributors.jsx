@@ -37,17 +37,32 @@ export const TopContributors = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const fetchTopContributors = async () => {
+    const fetchTopContributorsWithRetry = async (retries = 3) => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
-        const response = await fetch(`${backendUrl}/api/top-contributors`);
-        
-        if (response.ok) {
+        const rawBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+        const backendUrl = rawBackendUrl.replace(/\/$/, "");
+
+        let response;
+
+        // 👈 Auto-Retry Loop for Backend Cold Starts
+        for (let i = 0; i < retries; i++) {
+          try {
+            response = await fetch(`${backendUrl}/api/top-contributors`);
+            if (response.ok) break; // If successful, exit the retry loop
+          } catch (err) {
+            if (i === retries - 1) throw err; // If last attempt, throw error
+            await new Promise((res) => setTimeout(res, 2000)); // Wait 2 seconds
+          }
+        }
+
+        if (response && response.ok) {
           const data = await response.json();
           if (isMounted) {
             // Filter out any null/undefined items
             setContributors(Array.isArray(data) ? data.filter((c) => c && (c.name || c.userId)) : []);
           }
+        } else {
+          console.error("Backend returned non-OK status:", response?.status);
         }
       } catch (error) {
         console.error("Error fetching top contributors:", error);
@@ -58,7 +73,7 @@ export const TopContributors = () => {
       }
     };
 
-    fetchTopContributors();
+    fetchTopContributorsWithRetry();
 
     return () => {
       isMounted = false;
@@ -97,8 +112,9 @@ export const TopContributors = () => {
 
         {/* Dynamic Contributors Grid */}
         {isLoading ? (
-          <div className="w-full min-h-[220px] flex items-center justify-center">
+          <div className="w-full min-h-[220px] flex flex-col items-center justify-center gap-4">
             <Spinner size="lg" color="current" className="text-[#149788]" />
+            <p className="text-sm text-zinc-500 animate-pulse">Connecting to server...</p>
           </div>
         ) : contributors.length === 0 ? (
           <motion.div 
