@@ -4,7 +4,7 @@ import ImageWithSpinner from "@/components/ImageWithSpinner";
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
-import { Spinner, Button } from "@heroui/react";
+import { Spinner } from "@heroui/react";
 import toast from "react-hot-toast";
 import {
   Shield,
@@ -40,8 +40,9 @@ export default function AdminProfileSettings() {
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   const fileInputRef = useRef(null);
-  const backendUrl =
+  const rawBackendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const backendUrl = rawBackendUrl.replace(/\/$/, "");
 
   // Sync user name on session load
   useEffect(() => {
@@ -50,70 +51,83 @@ export default function AdminProfileSettings() {
     }
   }, [user?.name]);
 
-  // Fetch Admin Activity & Moderation Data
+  // 👈 CHANGED: Added auto-retry loop, safe session check, and case-insensitive report filtering
   useEffect(() => {
-    const fetchAdminActivity = async () => {
-      const tokenRes = await authClient.token();
-      const token = tokenRes?.data?.token;
+    let isMounted = true;
 
-      try {
-        const [statsRes, reportsRes, myLessonsRes] = await Promise.all([
-          fetch(`${backendUrl}/api/admin/stats`,{
-            headers: {
-              'Authorization': `Bearer ${token}`
+    const fetchAdminActivityWithRetry = async (retries = 3) => {
+      // 👈 Wait until session user is available to avoid skipping my-lessons
+      if (!user?.id) return;
+
+      setIsLoadingStats(true);
+
+      for (let i = 0; i < retries; i++) {
+        try {
+          const tokenRes = await authClient.token();
+          const token = tokenRes?.data?.token;
+
+          const headers = { "Content-Type": "application/json" };
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          const [statsRes, reportsRes, myLessonsRes] = await Promise.all([
+            fetch(`${backendUrl}/api/admin/stats`, { headers }),
+            fetch(`${backendUrl}/api/admin/reports`, { headers }),
+            fetch(`${backendUrl}/api/my-lessons/${user.id}`, { headers }),
+          ]);
+
+          if (statsRes.ok && reportsRes.ok && myLessonsRes.ok) {
+            const [statsData, reportsData, myLessonsData] = await Promise.all([
+              statsRes.json(),
+              reportsRes.json(),
+              myLessonsRes.json(),
+            ]);
+
+            // 👈 CHANGED: Case-insensitive status matching handles "resolved" and "Resolved"
+            const resolvedReports = Array.isArray(reportsData)
+              ? reportsData.filter(
+                  (r) => r.status?.toLowerCase() === "resolved",
+                ).length
+              : 0;
+
+            if (isMounted) {
+              setAdminStats({
+                resolvedReports,
+                totalLessons: statsData?.totalLessons || 0,
+                totalUsers: statsData?.totalUsers || 0,
+                myLessons: Array.isArray(myLessonsData)
+                  ? myLessonsData.length
+                  : 0,
+              });
+              setIsLoadingStats(false);
             }
-          }),
-          fetch(`${backendUrl}/api/admin/reports`,{
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }),
-          user?.id
-            ? fetch(`${backendUrl}/api/my-lessons/${user.id}`,{
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            })
-            : Promise.resolve(null),
-        ]);
+            return;
+          }
 
-        let totalUsers = 0;
-        let totalLessons = 0;
-        let resolvedReports = 0;
-        let myLessons = 0;
-
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          totalUsers = statsData.totalUsers || 0;
-          totalLessons = statsData.totalLessons || 0;
+          // Delay before retrying on cold start
+          if (i < retries - 1) {
+            await new Promise((res) => setTimeout(res, 2000));
+          }
+        } catch (error) {
+          if (i === retries - 1) {
+            console.error(
+              "Error fetching admin activity after retries:",
+              error,
+            );
+          }
+          await new Promise((res) => setTimeout(res, 2000));
         }
+      }
 
-        if (reportsRes.ok) {
-          const reportsData = await reportsRes.json();
-          resolvedReports = reportsData.filter(
-            (r) => r.status === "Resolved",
-          ).length;
-        }
-
-        if (myLessonsRes && myLessonsRes.ok) {
-          const myLessonsData = await myLessonsRes.json();
-          myLessons = myLessonsData.length || 0;
-        }
-
-        setAdminStats({
-          resolvedReports,
-          totalLessons,
-          totalUsers,
-          myLessons,
-        });
-      } catch (error) {
-        console.error("Error fetching admin activity:", error);
-      } finally {
+      if (isMounted) {
         setIsLoadingStats(false);
       }
     };
 
-    fetchAdminActivity();
+    fetchAdminActivityWithRetry();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id, backendUrl]);
 
   const initial = fullName
@@ -204,7 +218,7 @@ export default function AdminProfileSettings() {
 
     try {
       const { error } = await authClient.updateUser({
-        name: fullName,
+        name: fullName.trim(),
       });
 
       if (error) {
@@ -257,7 +271,9 @@ export default function AdminProfileSettings() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="relative">
             {currentImage ? (
-              <ImageWithSpinner width={500} height={500}
+              <ImageWithSpinner
+                width={500}
+                height={500}
                 src={currentImage}
                 alt="Profile Avatar"
                 className={`w-24 h-24 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700 shadow-sm transition-opacity ${isUploadingImage ? "opacity-40" : "opacity-100"}`}
@@ -314,7 +330,6 @@ export default function AdminProfileSettings() {
         {/* Details Form */}
         <form onSubmit={handleSaveDetails} className="flex flex-col gap-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Display Name (Editable) */}
             <div className="flex flex-col gap-2">
               <label className="text-[13px] font-bold text-zinc-700 dark:text-zinc-200 flex items-center gap-2">
                 <UserIcon className="w-4 h-4 text-zinc-400" /> Admin Display
@@ -330,7 +345,6 @@ export default function AdminProfileSettings() {
               />
             </div>
 
-            {/* Email Address (Read-only) */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <label className="text-[13px] font-bold text-zinc-700 dark:text-zinc-200 flex items-center gap-2">
@@ -391,7 +405,7 @@ export default function AdminProfileSettings() {
                 {isLoadingStats ? (
                   <Spinner size="sm" color="current" />
                 ) : (
-                  adminStats.resolvedReports
+                  adminStats.resolvedReports.toLocaleString()
                 )}
               </h3>
               <p className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
@@ -413,7 +427,7 @@ export default function AdminProfileSettings() {
                 {isLoadingStats ? (
                   <Spinner size="sm" color="current" />
                 ) : (
-                  adminStats.totalUsers
+                  adminStats.totalUsers.toLocaleString()
                 )}
               </h3>
               <p className="text-[12px] font-medium text-zinc-500 mt-2">
@@ -435,7 +449,7 @@ export default function AdminProfileSettings() {
                 {isLoadingStats ? (
                   <Spinner size="sm" color="current" />
                 ) : (
-                  adminStats.totalLessons
+                  adminStats.totalLessons.toLocaleString()
                 )}
               </h3>
               <p className="text-[12px] font-medium text-[#0f766e] dark:text-[#16A696] mt-2 flex items-center gap-1">
@@ -457,7 +471,7 @@ export default function AdminProfileSettings() {
                 {isLoadingStats ? (
                   <Spinner size="sm" color="current" />
                 ) : (
-                  adminStats.myLessons
+                  adminStats.myLessons.toLocaleString()
                 )}
               </h3>
               <p className="text-[12px] font-medium text-zinc-500 mt-2">
