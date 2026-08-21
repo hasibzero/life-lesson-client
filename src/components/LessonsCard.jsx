@@ -39,26 +39,37 @@ export default function LessonsCard() {
   useEffect(() => {
     let isMounted = true;
 
-    const fetchLessons = async () => {
+    const fetchLessonsWithRetry = async (retries = 3) => {
       try {
         const rawBackendUrl =
           process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
         const backendUrl = rawBackendUrl.replace(/\/$/, "");
 
-        const response = await fetch(`${backendUrl}/api/lessons/featured`);
+        let response;
+        
+        // 👈 Auto-Retry Loop for Backend Cold Starts
+        for (let i = 0; i < retries; i++) {
+          try {
+            response = await fetch(`${backendUrl}/api/lessons/featured`);
+            if (response.ok) break; // If successful, exit the retry loop
+          } catch (err) {
+            if (i === retries - 1) throw err; // If it's the last attempt, throw the error
+            await new Promise((res) => setTimeout(res, 2000)); // Wait 2 seconds before retrying
+          }
+        }
 
-        if (response.ok) {
+        if (response && response.ok) {
           const data = await response.json();
           if (isMounted) {
             setLessons(Array.isArray(data) ? data : []);
           }
         } else {
-          console.error("Backend returned non-OK status:", response.status);
+          console.error("Backend returned non-OK status:", response?.status);
           if (isMounted) toast.error("Failed to load featured lessons.");
         }
       } catch (error) {
         console.error("Error fetching lessons:", error);
-        if (isMounted) toast.error("Server connection error.");
+        if (isMounted) toast.error("Server is waking up. Please refresh the page.");
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -66,7 +77,7 @@ export default function LessonsCard() {
       }
     };
 
-    fetchLessons();
+    fetchLessonsWithRetry();
 
     return () => {
       isMounted = false;
@@ -85,8 +96,9 @@ export default function LessonsCard() {
 
   if (isLoading) {
     return (
-      <div className="w-full min-h-[40vh] flex items-center justify-center">
+      <div className="w-full min-h-[40vh] flex flex-col items-center justify-center gap-4">
         <Spinner size="lg" color="current" className="text-[#149788]" />
+        <p className="text-sm text-zinc-500 animate-pulse">Connecting to server...</p>
       </div>
     );
   }
