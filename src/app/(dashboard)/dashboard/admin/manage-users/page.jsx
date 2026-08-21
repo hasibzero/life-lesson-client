@@ -16,7 +16,7 @@ import {
   BookOpen,
   X
 } from "lucide-react";
-import { Spinner, Button } from "@heroui/react";
+import { Spinner } from "@heroui/react";
 import toast from "react-hot-toast";
 import { authClient } from "@/lib/auth-client";
 
@@ -37,65 +37,85 @@ export default function UserManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const rawBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const backendUrl = rawBackendUrl.replace(/\/$/, "");
 
-  // Fetch Users & Lessons in Parallel to Calculate Published Lesson Counts
-  const fetchUsers = async () => {
-    const tokenRes = await authClient.token();
-    const token = tokenRes?.data?.token;
-
-    try {
-      const [usersRes, lessonsRes] = await Promise.all([
-        fetch(`${backendUrl}/api/admin/users`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }),
-        fetch(`${backendUrl}/api/lessons/admin-all`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-      ]);
-
-      let lessonsData = [];
-      if (lessonsRes.ok) {
-        lessonsData = await lessonsRes.json();
-      }
-
-      // Map lesson count per creator ID
-      const lessonCountMap = {};
-      if (Array.isArray(lessonsData)) {
-        lessonsData.forEach((lesson) => {
-          const creatorId = (lesson.creatorId || lesson.userId)?.toString();
-          if (creatorId) {
-            lessonCountMap[creatorId] = (lessonCountMap[creatorId] || 0) + 1;
-          }
-        });
-      }
-
-      if (usersRes.ok) {
-        const rawUsers = await usersRes.json();
-        const enrichedUsers = Array.isArray(rawUsers)
-          ? rawUsers.map((u) => ({
-              ...u,
-              lessonsCount: u.lessonsCount ?? (lessonCountMap[u._id?.toString()] || 0)
-            }))
-          : [];
-        setUsers(enrichedUsers);
-      } else {
-        toast.error("Failed to load platform users.");
-      }
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      toast.error("Server connection error.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // 👈 CHANGED: Auto-retry loop to handle Render cold starts, token delay, and intermittent 500 errors
   useEffect(() => {
-    fetchUsers();
+    let isMounted = true;
+
+    const fetchUsersWithRetry = async (retries = 3) => {
+      setIsLoading(true);
+
+      for (let i = 0; i < retries; i++) {
+        try {
+          const tokenRes = await authClient.token();
+          const token = tokenRes?.data?.token;
+
+          const headers = { "Content-Type": "application/json" };
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          const [usersRes, lessonsRes] = await Promise.all([
+            fetch(`${backendUrl}/api/admin/users`, { headers }),
+            fetch(`${backendUrl}/api/lessons/admin-all`, { headers }),
+          ]);
+
+          if (usersRes.ok) {
+            const rawUsers = await usersRes.json();
+            let lessonsData = [];
+
+            if (lessonsRes.ok) {
+              lessonsData = await lessonsRes.json();
+            }
+
+            // Map lesson count per creator ID
+            const lessonCountMap = {};
+            if (Array.isArray(lessonsData)) {
+              lessonsData.forEach((lesson) => {
+                const creatorId = (lesson.creatorId || lesson.userId)?.toString();
+                if (creatorId) {
+                  lessonCountMap[creatorId] = (lessonCountMap[creatorId] || 0) + 1;
+                }
+              });
+            }
+
+            const enrichedUsers = Array.isArray(rawUsers)
+              ? rawUsers.map((u) => ({
+                  ...u,
+                  lessonsCount: u.lessonsCount ?? (lessonCountMap[u._id?.toString()] || 0),
+                }))
+              : [];
+
+            if (isMounted) {
+              setUsers(enrichedUsers);
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          // Delay before next retry attempt
+          if (i < retries - 1) {
+            await new Promise((res) => setTimeout(res, 2000));
+          }
+        } catch (error) {
+          if (i === retries - 1) {
+            console.error("Error fetching users after retries:", error);
+          }
+          await new Promise((res) => setTimeout(res, 2000));
+        }
+      }
+
+      if (isMounted) {
+        toast.error("Failed to load platform users. Please refresh.");
+        setIsLoading(false);
+      }
+    };
+
+    fetchUsersWithRetry();
+
+    return () => {
+      isMounted = false;
+    };
   }, [backendUrl]);
 
   // Handle User Action Updates (Suspend, Make Premium, Make Admin)
@@ -108,7 +128,7 @@ export default function UserManagementPage() {
         method: "PATCH",
         headers: { 
           "Content-Type": "application/json",
-          'Authorization': `Bearer ${token}`
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify(updatePayload),
       });
@@ -117,7 +137,8 @@ export default function UserManagementPage() {
         toast.success(successMessage);
         setUsers(users.map(u => u._id === userId ? { ...u, ...updatePayload } : u));
       } else {
-        toast.error("Failed to update user.");
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.message || "Failed to update user.");
       }
     } catch (error) {
       toast.error("An error occurred.");
@@ -136,8 +157,8 @@ export default function UserManagementPage() {
       const response = await fetch(`${backendUrl}/api/admin/users/${userToDelete._id}`, {
         method: "DELETE",
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
       });
 
       if (response.ok) {
@@ -145,7 +166,8 @@ export default function UserManagementPage() {
         setUsers(prev => prev.filter(u => u._id !== userToDelete._id));
         setUserToDelete(null);
       } else {
-        toast.error("Failed to delete user.");
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.message || "Failed to delete user.");
       }
     } catch (error) {
       toast.error("Server error while deleting user.");
@@ -162,9 +184,9 @@ export default function UserManagementPage() {
 
   // Detailed Stats Calculations
   const totalUsersCount = users.length;
-  const adminUsersCount = users.filter(u => u.role === "admin").length;
-  const proUsersCount = users.filter(u => u.plan === "premium" && u.role !== "admin").length;
-  const freeUsersCount = users.filter(u => u.plan !== "premium" && u.role !== "admin").length;
+  const adminUsersCount = users.filter(u => u.role?.toLowerCase() === "admin").length;
+  const proUsersCount = users.filter(u => u.plan?.toLowerCase() === "premium" && u.role?.toLowerCase() !== "admin").length;
+  const freeUsersCount = users.filter(u => u.plan?.toLowerCase() !== "premium" && u.role?.toLowerCase() !== "admin").length;
 
   // Filter Logic
   const filteredUsers = users.filter((user) => {
@@ -186,8 +208,9 @@ export default function UserManagementPage() {
 
   if (isLoading) {
     return (
-      <div className="w-full min-h-[60vh] flex items-center justify-center">
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-3">
         <Spinner size="lg" color="current" className="text-[#0f766e]" />
+        <p className="text-sm text-zinc-500 animate-pulse">Loading user records...</p>
       </div>
     );
   }
@@ -270,7 +293,10 @@ export default function UserManagementPage() {
           <input 
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Search users by name or email..."
             className="w-full bg-[#f9fafb] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-11 pr-4 py-3 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#0f766e] transition-colors"
           />
@@ -279,7 +305,10 @@ export default function UserManagementPage() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <select 
             value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
+            onChange={(e) => {
+              setSelectedRole(e.target.value);
+              setCurrentPage(1);
+            }}
             className="cursor-pointer bg-[#f9fafb] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#0f766e] transition-colors"
           >
             <option value="All">All Roles</option>
@@ -289,7 +318,10 @@ export default function UserManagementPage() {
 
           <select 
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            onChange={(e) => {
+              setSelectedStatus(e.target.value);
+              setCurrentPage(1);
+            }}
             className="cursor-pointer bg-[#f9fafb] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#0f766e] transition-colors"
           >
             <option value="All">All Statuses</option>
@@ -318,9 +350,9 @@ export default function UserManagementPage() {
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-[14px]">
               {currentUsers.map((u) => {
                 const userInitial = u.name ? u.name.charAt(0).toUpperCase() : "U";
-                const isSuspended = (u.status || "Active") === "Suspended";
-                const isPremium = u.plan === "premium";
-                const isAdmin = u.role === "admin";
+                const isSuspended = (u.status || "Active")?.toLowerCase() === "suspended";
+                const isPremium = u.plan?.toLowerCase() === "premium";
+                const isAdmin = u.role?.toLowerCase() === "admin";
 
                 return (
                   <tr key={u._id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors">
@@ -475,7 +507,6 @@ export default function UserManagementPage() {
             className="w-full max-w-[420px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col items-center text-center relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button */}
             <button
               onClick={() => setUserToDelete(null)}
               disabled={isDeleting}
@@ -484,12 +515,10 @@ export default function UserManagementPage() {
               <X className="w-4 h-4" />
             </button>
 
-            {/* Warning Icon */}
             <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center mb-4 border border-red-200/60 dark:border-red-500/20">
               <AlertTriangle className="w-6 h-6" />
             </div>
 
-            {/* Modal Heading & Description */}
             <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
               Delete User Account?
             </h2>
@@ -501,7 +530,6 @@ export default function UserManagementPage() {
               ? This action cannot be undone and will erase all profile access.
             </p>
 
-            {/* Action Buttons */}
             <div className="w-full flex items-center gap-3">
               <button
                 type="button"

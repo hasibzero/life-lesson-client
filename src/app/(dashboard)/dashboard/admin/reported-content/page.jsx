@@ -15,9 +15,8 @@ import {
   Clock,
   FileText,
   AlertTriangle,
-  Mail,
 } from "lucide-react";
-import { Spinner, Button } from "@heroui/react";
+import { Spinner } from "@heroui/react";
 import toast from "react-hot-toast";
 import { authClient } from "@/lib/auth-client";
 
@@ -35,36 +34,61 @@ export default function ReportedContentPage() {
   const [lessonToDelete, setLessonToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const backendUrl =
+  const rawBackendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const backendUrl = rawBackendUrl.replace(/\/$/, "");
 
-  // Fetch Reports
-  const fetchReports = async () => {
-    const tokenRes = await authClient.token();
-    const token = tokenRes?.data?.token;
-
-    try {
-      const response = await fetch(`${backendUrl}/api/admin/reports`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setReports(Array.isArray(data) ? data : []);
-      } else {
-        toast.error("Failed to load reports.");
-      }
-    } catch (error) {
-      console.error("Error fetching reports:", error);
-      toast.error("Server connection error.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // 👈 CHANGED: Auto-retry loop to handle Render backend cold starts and network latency
   useEffect(() => {
-    fetchReports();
+    let isMounted = true;
+
+    const fetchReportsWithRetry = async (retries = 3) => {
+      setIsLoading(true);
+
+      for (let i = 0; i < retries; i++) {
+        try {
+          const tokenRes = await authClient.token();
+          const token = tokenRes?.data?.token;
+
+          const headers = { "Content-Type": "application/json" };
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          const response = await fetch(`${backendUrl}/api/admin/reports`, {
+            headers,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (isMounted) {
+              setReports(Array.isArray(data) ? data : []);
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          // Delay before retrying
+          if (i < retries - 1) {
+            await new Promise((res) => setTimeout(res, 2000));
+          }
+        } catch (error) {
+          if (i === retries - 1) {
+            console.error("Error fetching reports after retries:", error);
+          }
+          await new Promise((res) => setTimeout(res, 2000));
+        }
+      }
+
+      if (isMounted) {
+        toast.error("Failed to load reports. Please refresh.");
+        setIsLoading(false);
+      }
+    };
+
+    fetchReportsWithRetry();
+
+    return () => {
+      isMounted = false;
+    };
   }, [backendUrl]);
 
   // Case-insensitive status grouping
@@ -124,7 +148,8 @@ export default function ReportedContentPage() {
         {
           method: "PATCH",
           headers: {
-            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` }),
           },
         },
       );
@@ -138,7 +163,8 @@ export default function ReportedContentPage() {
         );
         setIsModalOpen(false);
       } else {
-        toast.error("Failed to clear reports.");
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.message || "Failed to clear reports.");
       }
     } catch (error) {
       console.error("Error ignoring reports:", error);
@@ -160,7 +186,7 @@ export default function ReportedContentPage() {
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${token}`,
+            ...(token && { Authorization: `Bearer ${token}` }),
           },
         },
       );
@@ -177,7 +203,8 @@ export default function ReportedContentPage() {
         setIsModalOpen(false);
         setLessonToDelete(null);
       } else {
-        toast.error("Failed to delete lesson.");
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.message || "Failed to delete lesson.");
       }
     } catch (error) {
       console.error("Error deleting lesson:", error);
@@ -198,8 +225,11 @@ export default function ReportedContentPage() {
 
   if (isLoading) {
     return (
-      <div className="w-full min-h-[60vh] flex items-center justify-center">
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-3">
         <Spinner size="lg" color="current" className="text-[#0f766e]" />
+        <p className="text-sm text-zinc-500 animate-pulse">
+          Loading moderation queue...
+        </p>
       </div>
     );
   }
@@ -293,7 +323,6 @@ export default function ReportedContentPage() {
                   key={group.lessonId}
                   className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors"
                 >
-                  {/* Lesson Title & Link */}
                   <td className="py-4 px-6 font-bold text-zinc-900 dark:text-white">
                     <Link
                       href={`/lessons/${group.lessonId}`}
@@ -304,12 +333,10 @@ export default function ReportedContentPage() {
                     </Link>
                   </td>
 
-                  {/* Author */}
                   <td className="py-4 px-6 text-zinc-700 dark:text-zinc-200 font-semibold whitespace-nowrap">
                     {group.authorName}
                   </td>
 
-                  {/* Report Count */}
                   <td className="py-4 px-6 text-center whitespace-nowrap">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-extrabold bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-900/50">
                       <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
@@ -318,7 +345,6 @@ export default function ReportedContentPage() {
                     </span>
                   </td>
 
-                  {/* View Details Modal Trigger */}
                   <td className="py-4 px-6 whitespace-nowrap">
                     <button
                       onClick={() => {
@@ -331,10 +357,8 @@ export default function ReportedContentPage() {
                     </button>
                   </td>
 
-                  {/* Actions: Ignore / Delete Lesson */}
                   <td className="py-4 px-6 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-2">
-                      {/* Ignore Action */}
                       <button
                         onClick={() => handleIgnoreReports(group.lessonId)}
                         title="Ignore and dismiss all reports for this lesson"
@@ -344,7 +368,6 @@ export default function ReportedContentPage() {
                         Ignore
                       </button>
 
-                      {/* Delete Action (Triggers Modal) */}
                       <button
                         onClick={() => setLessonToDelete(group)}
                         title="Permanently delete this lesson"
@@ -531,7 +554,6 @@ export default function ReportedContentPage() {
             className="w-full max-w-[420px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-xl flex flex-col items-center text-center relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button */}
             <button
               onClick={() => setLessonToDelete(null)}
               disabled={isDeleting}
@@ -540,12 +562,10 @@ export default function ReportedContentPage() {
               <X className="w-4 h-4" />
             </button>
 
-            {/* Warning Icon Badge */}
             <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center mb-4 border border-red-200/60 dark:border-red-500/20">
               <AlertTriangle className="w-6 h-6" />
             </div>
 
-            {/* Modal Heading & Description */}
             <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
               Delete Flagged Lesson?
             </h2>
@@ -558,7 +578,6 @@ export default function ReportedContentPage() {
               tickets.
             </p>
 
-            {/* Action Buttons */}
             <div className="w-full flex items-center gap-3">
               <button
                 type="button"
