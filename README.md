@@ -1,45 +1,32 @@
 # Digital Life Lessons
 
+## Name
+Digital Life Lessons (D.L.L.)
+
 ## Purpose
-Digital Life Lessons is a modern web platform designed for creators, educators, and community members to share wisdom, insights, and impactful life lessons. The platform enables users to publish content, interact with the community through saves and comments, manage their own personalized dashboard, and access premium modules seamlessly. 
+A modern web platform that allows users to create, share, and manage life lessons. It provides an admin dashboard for lesson management, user profiles, and interactive features such as likes, comments, and bookmarking.
 
 ## Live URL
-[Insert Live URL Here] *(Please update with your production Vercel/Netlify link)*
+[https://digital-life-lessons.vercel.app](https://digital-life-lessons.vercel.app)
 
 ## Key Features
-- **📝 Lesson Publishing:** Create, edit, and publish detailed digital life lessons with rich content.
-- **🔒 Secure Authentication:** Robust user authentication flow using Better Auth and MongoDB.
-- **🎨 Modern UI/UX:** A beautifully designed, fully responsive interface powered by HeroUI, Tailwind CSS, and Framer Motion animations.
-- **📱 Dedicated Dashboards:** Custom dashboard experiences for regular users and administrators to manage content, settings, and users.
-- **🖼️ Optimized Media & Fallbacks:** High-performance image loading using Next.js `Image` with custom spinner wrappers and dynamic text-based initial avatars for users without profile pictures.
-- **💳 Premium Content:** Stripe integration for unlocking premium insights and discussions.
-- **💬 Community Interaction:** Bookmark favorite lessons, share them on social media, and leave comments to engage with creators.
-- **🌗 Dark Mode Ready:** Seamless light and dark mode support using `next-themes`.
+- **Admin Dashboard** – Manage lessons, categories, and settings.
+- **User Profiles** – Personalised pages with avatar, bio, and authored lessons.
+- **Lesson Cards** – Responsive cards with image loading spinner, fall‑back initials, and interactive actions (like, bookmark, comment).
+- **Authentication** – Secure sign‑in/out with email/social providers and session handling.
+- **Real‑time Interaction** – Users can like, comment, and bookmark lessons instantly.
+- **Responsive Design** – Optimised for desktop, tablet, and mobile devices using modern CSS.
+- **Optimised Images** – Custom `ImageWithSpinner` component for graceful image loading.
 
 ## NPM Packages Used
-This project is built using the Next.js App Router and relies on the following key dependencies:
-
-### Core Framework
-- `next` (v16.3.0) - React framework
-- `react` & `react-dom` (v19.2.8) - Core UI library
-
-### Styling & UI
-- `tailwindcss` (v4) - Utility-first CSS framework
-- `@heroui/react` & `@heroui/styles` - Beautiful, accessible React components
-- `framer-motion` - Production-ready animations
-- `lucide-react` - Beautiful & consistent icons
-- `next-themes` - Theme switching (light/dark mode)
-
-### Authentication & Database
-- `better-auth` - Comprehensive authentication library
-- `@better-auth/mongo-adapter` - MongoDB adapter for Better Auth
-- `mongodb` - Official MongoDB driver for Node.js
-
-### Forms & Utilities
-- `react-hook-form` - Performant, flexible, and extensible forms
-- `react-hot-toast` - Smoking hot React notifications
-- `swiper` - Modern mobile touch slider
-- `react-share` - Social media share buttons
-
-### Payments
-- `stripe` & `@stripe/stripe-js` - Payments infrastructure
+- **next** – React framework for server‑side rendering and routing.
+- **react** & **react-dom** – Core UI library.
+- **tailwindcss** – Utility‑first CSS framework for rapid styling.
+- **axios** – HTTP client for API communication.
+- **mongoose** – MongoDB object modeling.
+- **next-auth** – Authentication handling.
+- **react-hot-toast** – Toast notifications for success/failure feedback.
+- **framer‑motion** – Subtle animations and micro‑interactions.
+- **classnames** – Conditional class name handling.
+- **dotenv** – Environment variable management.
+- **eslint** & **prettier** – Code linting and formatting.
