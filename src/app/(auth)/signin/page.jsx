@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Button, TextField, Label, InputGroup, Input } from "@heroui/react";
 import { useForm } from "react-hook-form";
 import { authClient } from "@/lib/auth-client";
@@ -96,6 +97,7 @@ const SpinnerIcon = () => (
 );
 
 export default function SignIn() {
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -107,31 +109,44 @@ export default function SignIn() {
   const onSubmit = async (data) => {
     const toastId = toast.loading("Signing in...");
 
-    // Send the data to your authClient
-    const { data: signInData, error } = await authClient.signIn.email({
-      email: data.email,
-      password: data.password,
-    });
+    try {
+      const { data: signInData, error } = await authClient.signIn.email({
+        email: data.email,
+        password: data.password,
+      });
 
-    if (error) {
-      toast.error(error.message || "Invalid email or password.", { id: toastId });
-      console.error("Sign in error:", error);
-    } else {
-      toast.success("Signed in successfully!", { id: toastId });
-      console.log("Sign in successful:", signInData);
-      
-      // Redirect the user after successful sign-in
-      window.location.href = "/";
+      if (error) {
+        // Fallbacks ensure we always display something instead of an empty object
+        const errorMessage = error?.message || error?.statusText || "Invalid email or password. Please try again.";
+        toast.error(errorMessage, { id: toastId });
+        
+        // Use console.dir to safely expand properties that console.log might hide
+        console.dir(error, { depth: null });
+      } else {
+        toast.success("Signed in successfully!", { id: toastId });
+        console.log("Sign in successful:", signInData);
+        
+        // Use Next.js router for a smoother client-side transition
+        router.push("/");
+        router.refresh(); 
+      }
+    } catch (err) {
+      toast.error("Network or server error occurred.", { id: toastId });
+      console.error("Unexpected submission error:", err);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    
-    const data = await authClient.signIn.social({
-    provider: "google",
-
-  });
-  }
+    try {
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/", 
+      });
+    } catch (err) {
+      toast.error("Failed to initialize Google Sign-In.");
+      console.error("Google Auth Error:", err);
+    }
+  };
 
   return (
     <main className="min-h-screen w-full flex flex-col items-center justify-center bg-[#f8fafc] dark:bg-zinc-950 px-4 py-12 transition-colors duration-300">
@@ -148,7 +163,7 @@ export default function SignIn() {
         />
       </Link>
 
-      {/* Auth Card - Matches SignUp structure perfectly */}
+      {/* Auth Card */}
       <div className="w-full max-w-[440px] bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden">
         
         {/* Top Header Area */}
@@ -264,14 +279,14 @@ export default function SignIn() {
           {/* Social Login Button */}
           <Button
             onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-300 dark:border-zinc-700 text-[#1a202c] dark:text-white font-semibold text-[14px] py-2.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-300 dark:border-zinc-700 text-[#1a202c] dark:text-white font-semibold text-[14px] py-2.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <GoogleIcon />
             Continue with Google
           </Button>
         </div>
 
-        {/* Footer Area with distinct background */}
+        {/* Footer Area */}
         <div className="bg-[#f0f4f8] dark:bg-zinc-950/50 border-t border-zinc-200 dark:border-zinc-800 p-6 text-center">
           <p className="text-[14px] text-zinc-600 dark:text-zinc-400 font-medium">
             Don't have an account?{" "}

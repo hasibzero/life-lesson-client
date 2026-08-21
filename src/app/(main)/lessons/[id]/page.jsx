@@ -18,11 +18,25 @@ import {
   Send,
   X,
   Lock,
+  Copy,
   Check,
   Share2,
+  Download
 } from "lucide-react";
 import { Spinner, Button, Chip } from "@heroui/react";
 import toast from "react-hot-toast";
+
+// react-share imports
+import {
+  TwitterShareButton,
+  FacebookShareButton,
+  LinkedinShareButton,
+  WhatsappShareButton,
+  XIcon,
+  FacebookIcon,
+  LinkedinIcon,
+  WhatsappIcon,
+} from "react-share";
 
 const timeAgo = (date) => {
   const seconds = Math.floor((new Date() - new Date(date)) / 1000);
@@ -73,20 +87,26 @@ export default function LessonDetail() {
   const [commentText, setCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
-  // Report Modal States
+  // Modal States
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState("Inappropriate content");
   const [reportDetails, setReportDetails] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
-
-  // Share state
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Share URL setup
+  const [currentUrl, setCurrentUrl] = useState("");
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentUrl(window.location.href);
+    }
+  }, []);
 
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : "U";
   const backendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-  // 1. Authentication Guard: Redirect if not logged in
   useEffect(() => {
     if (!isPending && !user) {
       toast.error("Please sign in to view this lesson.");
@@ -94,7 +114,6 @@ export default function LessonDetail() {
     }
   }, [isPending, user, router, id]);
 
-  // 2. Fetch Lesson and Associated Data once authenticated
   useEffect(() => {
     const fetchLessonAndData = async () => {
       if (!id || !user?.id) return;
@@ -115,7 +134,7 @@ export default function LessonDetail() {
           setLikesCount(lessonData.likesCount || lessonData.likes?.length || 0);
           setBookmarksCount(lessonData.savedBy?.length || 0);
           setViewsCount(
-            lessonData.views || Math.floor(Math.random() * 4500) + 520,
+            lessonData.views || Math.floor(Math.random() * 4500) + 520
           );
 
           if (lessonData.likes?.includes(user.id)) setIsLiked(true);
@@ -131,7 +150,7 @@ export default function LessonDetail() {
                 headers: {
                   Authorization: `Bearer ${token}`,
                 },
-              },
+              }
             );
             if (authorRes.ok) {
               const authorLessons = await authorRes.json();
@@ -193,7 +212,7 @@ export default function LessonDetail() {
     setLikesCount(
       previousIsLiked
         ? Math.max(0, previousLikesCount - 1)
-        : previousLikesCount + 1,
+        : previousLikesCount + 1
     );
 
     const tokenRes = await authClient.token();
@@ -238,7 +257,7 @@ export default function LessonDetail() {
     setBookmarksCount(
       previousIsBookmarked
         ? Math.max(0, previousBookmarksCount - 1)
-        : previousBookmarksCount + 1,
+        : previousBookmarksCount + 1
     );
 
     const tokenRes = await authClient.token();
@@ -261,7 +280,7 @@ export default function LessonDetail() {
           data.message ||
             (data.isBookmarked
               ? "Saved to favorites!"
-              : "Removed from favorites."),
+              : "Removed from favorites.")
         );
       } else {
         setIsBookmarked(previousIsBookmarked);
@@ -304,7 +323,7 @@ export default function LessonDetail() {
       if (response.ok && data.success !== false) {
         toast.success(
           data.message ||
-            "Report submitted. Our moderation team will inspect this lesson.",
+            "Report submitted. Our moderation team will inspect this lesson."
         );
         setIsReportModalOpen(false);
         setReportReason("Inappropriate content");
@@ -371,56 +390,25 @@ export default function LessonDetail() {
     }
   };
 
-  const handleShareOrCopy = async () => {
-    if (typeof window === "undefined") return;
-
-    const shareUrl = window.location.href;
-    const shareData = {
-      title: lesson?.title || "Digital Life Lesson",
-      text: lesson?.description
-        ? `${lesson.description.slice(0, 90)}...`
-        : "Check out this wisdom lesson!",
-      url: shareUrl,
-    };
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-        return;
-      } catch (error) {
-        if (error.name !== "AbortError") {
-          console.error("Native share failed, falling back to copy:", error);
-        } else {
-          return;
-        }
-      }
-    }
-
+  const handleCopyLink = async () => {
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(shareUrl);
-      } else {
-        const textArea = document.createElement("textarea");
-        textArea.value = shareUrl;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        textArea.style.top = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        const successful = document.execCommand("copy");
-        document.body.removeChild(textArea);
-
-        if (!successful) throw new Error("Fallback copy failed");
-      }
-
+      await navigator.clipboard.writeText(currentUrl);
       setCopiedLink(true);
       toast.success("Link copied to clipboard!");
       setTimeout(() => setCopiedLink(false), 2000);
     } catch (err) {
       console.error("Clipboard error:", err);
-      toast.error("Failed to copy link. Please copy the URL manually.");
+      toast.error("Failed to copy link.");
     }
+  };
+
+  const handleExportPDF = () => {
+    if (isLocked) {
+      toast.error("Export to PDF is not available for locked lessons.");
+      return;
+    }
+    // Triggers the native browser print dialog, relying on tailwind `print:` classes
+    window.print();
   };
 
   const formatDate = (dateString) => {
@@ -432,7 +420,6 @@ export default function LessonDetail() {
     });
   };
 
-  // 3. Render loading spinner while checking auth session or fetching data
   if (isPending || isLoading || !user) {
     return (
       <div className="w-full min-h-screen flex items-center justify-center bg-[#f9fafb] dark:bg-[#0c0c0e]">
@@ -457,11 +444,14 @@ export default function LessonDetail() {
     );
   }
 
+  const shareTitle = lesson.title || "Digital Life Lesson";
+
   return (
-    <div className="w-full min-h-screen bg-[#f9fafb] dark:bg-[#0c0c0e] py-10 px-4 sm:px-6 lg:px-8 flex justify-center font-sans">
-      <article className="w-full max-w-[820px] flex flex-col gap-8">
-        {/* Navigation Bar */}
-        <div className="flex items-center justify-between">
+    <div className="w-full min-h-screen bg-[#f9fafb] dark:bg-[#0c0c0e] py-10 px-4 sm:px-6 lg:px-8 flex justify-center font-sans print:bg-white print:py-0">
+      <article className="w-full max-w-[820px] flex flex-col gap-8 print:gap-4">
+        
+        {/* Navigation Bar - Hidden on Print */}
+        <div className="flex items-center justify-between print:hidden">
           <Link
             href="/lessons"
             className="flex items-center gap-2 text-[14px] font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer w-fit"
@@ -495,7 +485,7 @@ export default function LessonDetail() {
 
         {/* Featured Cover Image */}
         {lesson.coverImage && (
-          <div className="w-full h-[280px] sm:h-[400px] rounded-3xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-800 relative bg-zinc-100 dark:bg-zinc-900">
+          <div className="w-full h-[280px] sm:h-[400px] rounded-3xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-800 relative bg-zinc-100 dark:bg-zinc-900 print:h-[250px] print:rounded-none print:border-none print:shadow-none">
             <img
               src={lesson.coverImage}
               alt={lesson.title}
@@ -506,7 +496,7 @@ export default function LessonDetail() {
               }`}
             />
             {isLocked && (
-              <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex flex-col items-center justify-center text-center p-4">
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex flex-col items-center justify-center text-center p-4 print:hidden">
                 <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mb-2 shadow-lg">
                   <Lock className="w-6 h-6 text-amber-400" />
                 </div>
@@ -523,7 +513,7 @@ export default function LessonDetail() {
 
         {/* Lesson Title, Category & Tone Badges */}
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
             <Chip
               size="sm"
               className="bg-[#eef2ff] text-[#4f46e5] dark:bg-indigo-500/10 dark:text-indigo-400 font-bold border-none"
@@ -555,38 +545,38 @@ export default function LessonDetail() {
             )}
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-extrabold text-zinc-900 dark:text-white leading-[1.15] tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-extrabold text-zinc-900 dark:text-white leading-[1.15] tracking-tight print:text-black print:text-3xl">
             {lesson.title}
           </h1>
         </div>
 
         {/* Metadata Block */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-[13px] shadow-xs">
-          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
-            <Calendar className="w-4 h-4 text-[#0f766e]" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-[13px] shadow-xs print:border-none print:shadow-none print:p-0 print:gap-1">
+          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 print:text-black">
+            <Calendar className="w-4 h-4 text-[#0f766e] print:hidden" />
             <div className="flex flex-col">
-              <span className="text-[11px] uppercase font-bold text-zinc-400">
+              <span className="text-[11px] uppercase font-bold text-zinc-400 print:text-black">
                 Created
               </span>
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200 print:text-black">
                 {formatDate(lesson.createdAt)}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
-            <RefreshCw className="w-4 h-4 text-[#0f766e]" />
+          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 print:text-black">
+            <RefreshCw className="w-4 h-4 text-[#0f766e] print:hidden" />
             <div className="flex flex-col">
-              <span className="text-[11px] uppercase font-bold text-zinc-400">
+              <span className="text-[11px] uppercase font-bold text-zinc-400 print:text-black">
                 Updated
               </span>
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200 print:text-black">
                 {formatDate(lesson.updatedAt || lesson.createdAt)}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
+          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 print:hidden">
             <Globe className="w-4 h-4 text-[#0f766e]" />
             <div className="flex flex-col">
               <span className="text-[11px] uppercase font-bold text-zinc-400">
@@ -598,7 +588,7 @@ export default function LessonDetail() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
+          <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 print:hidden">
             <Clock className="w-4 h-4 text-[#0f766e]" />
             <div className="flex flex-col">
               <span className="text-[11px] uppercase font-bold text-zinc-400">
@@ -613,7 +603,7 @@ export default function LessonDetail() {
 
         {/* Lesson Content Body or Locked State */}
         {isLocked ? (
-          <div className="relative py-14 px-6 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 shadow-sm text-center">
+          <div className="relative py-14 px-6 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 shadow-sm text-center print:hidden">
             <div className="absolute inset-0 opacity-15 pointer-events-none blur-md px-8 py-6 select-none overflow-hidden">
               <p className="w-full h-4 bg-zinc-800 mb-4 rounded"></p>
               <p className="w-5/6 h-4 bg-zinc-800 mb-4 rounded"></p>
@@ -641,15 +631,15 @@ export default function LessonDetail() {
             </div>
           </div>
         ) : (
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-sm">
-            <div className="prose prose-zinc dark:prose-invert max-w-none text-[16px] leading-[1.85] text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-sm print:border-none print:shadow-none print:p-0">
+            <div className="prose prose-zinc dark:prose-invert max-w-none text-[16px] leading-[1.85] text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap print:text-black">
               {lesson.description}
             </div>
           </div>
         )}
 
-        {/* Stats & Engagement Metrics Strip */}
-        <div className="flex flex-wrap items-center justify-between gap-4 py-4 px-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xs">
+        {/* Stats & Engagement Metrics Strip - Hidden on Print */}
+        <div className="flex flex-wrap items-center justify-between gap-4 py-4 px-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xs print:hidden">
           <div className="flex items-center gap-6 text-[14px] font-bold text-zinc-600 dark:text-zinc-300">
             <div className="flex items-center gap-2">
               <Heart
@@ -680,87 +670,87 @@ export default function LessonDetail() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleShareOrCopy}
-              title="Share or Copy Link"
+              onClick={() => setIsShareModalOpen(true)}
+              title="Share Lesson"
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold transition-colors cursor-pointer border border-zinc-200 dark:border-zinc-700"
             >
-              {copiedLink ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Share2 className="w-3.5 h-3.5 text-zinc-500" />
-                  <span>Share</span>
-                </>
-              )}
+              <Share2 className="w-3.5 h-3.5 text-zinc-500" />
+              <span>Share</span>
+            </button>
+            <button
+              onClick={handleExportPDF}
+              title="Export as PDF"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-[13px] font-semibold transition-colors cursor-pointer border border-zinc-200 dark:border-zinc-700"
+            >
+              <Download className="w-3.5 h-3.5 text-zinc-500" />
+              <span>Export PDF</span>
             </button>
           </div>
         </div>
 
-        {/* Interaction Action Buttons */}
-        {isLocked ? (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-amber-50/60 dark:bg-amber-500/5 border border-amber-200/60 dark:border-amber-500/20 rounded-2xl">
-            <div className="flex items-center gap-2 text-[14px] text-amber-800 dark:text-amber-300 font-semibold">
-              <Lock className="w-4 h-4 shrink-0" />
-              <span>
-                Interactions, liking, and saving are reserved for Premium
-                members.
-              </span>
+        {/* Interaction Action Buttons - Hidden on Print */}
+        <div className="print:hidden">
+          {isLocked ? (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-amber-50/60 dark:bg-amber-500/5 border border-amber-200/60 dark:border-amber-500/20 rounded-2xl">
+              <div className="flex items-center gap-2 text-[14px] text-amber-800 dark:text-amber-300 font-semibold">
+                <Lock className="w-4 h-4 shrink-0" />
+                <span>
+                  Interactions, liking, and saving are reserved for Premium members.
+                </span>
+              </div>
+              <Link href="/pricing" className="w-full sm:w-auto">
+                <Button
+                  size="sm"
+                  className="w-full sm:w-auto bg-[#0f766e] text-white font-bold px-4 py-2 rounded-xl shadow-xs"
+                >
+                  Unlock
+                </Button>
+              </Link>
             </div>
-            <Link href="/pricing" className="w-full sm:w-auto">
-              <Button
-                size="sm"
-                className="w-full sm:w-auto bg-[#0f766e] text-white font-bold px-4 py-2 rounded-xl shadow-xs"
-              >
-                Unlock
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-[#e6f4f2] dark:bg-[#0f766e]/10 border border-[#b2dfdb] dark:border-[#0f766e]/30 rounded-2xl">
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <button
-                onClick={handleLikeToggle}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[14px] transition-all cursor-pointer shadow-xs ${
-                  isLiked
-                    ? "bg-red-500 text-white shadow-red-500/20"
-                    : "bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50"
-                }`}
-              >
-                <Heart
-                  className={`w-4 h-4 ${isLiked ? "fill-white" : "text-red-500"}`}
-                />
-                <span>{isLiked ? "Liked" : "Like"}</span>
-              </button>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-[#e6f4f2] dark:bg-[#0f766e]/10 border border-[#b2dfdb] dark:border-[#0f766e]/30 rounded-2xl">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  onClick={handleLikeToggle}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[14px] transition-all cursor-pointer shadow-xs ${
+                    isLiked
+                      ? "bg-red-500 text-white shadow-red-500/20"
+                      : "bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50"
+                  }`}
+                >
+                  <Heart
+                    className={`w-4 h-4 ${isLiked ? "fill-white" : "text-red-500"}`}
+                  />
+                  <span>{isLiked ? "Liked" : "Like"}</span>
+                </button>
+
+                <button
+                  onClick={handleBookmarkToggle}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[14px] transition-all cursor-pointer shadow-xs ${
+                    isBookmarked
+                      ? "bg-[#0f766e] text-white"
+                      : "bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50"
+                  }`}
+                >
+                  <Bookmark
+                    className={`w-4 h-4 ${isBookmarked ? "fill-white" : "text-[#0f766e]"}`}
+                  />
+                  <span>{isBookmarked ? "Saved" : "Save to Favorites"}</span>
+                </button>
+              </div>
 
               <button
-                onClick={handleBookmarkToggle}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[14px] transition-all cursor-pointer shadow-xs ${
-                  isBookmarked
-                    ? "bg-[#0f766e] text-white"
-                    : "bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50"
-                }`}
+                onClick={() => setIsReportModalOpen(true)}
+                className="flex items-center gap-1.5 text-[13px] font-semibold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
               >
-                <Bookmark
-                  className={`w-4 h-4 ${isBookmarked ? "fill-white" : "text-[#0f766e]"}`}
-                />
-                <span>{isBookmarked ? "Saved" : "Save to Favorites"}</span>
+                <Flag className="w-3.5 h-3.5" /> Report Issue
               </button>
             </div>
+          )}
+        </div>
 
-            <button
-              onClick={() => setIsReportModalOpen(true)}
-              className="flex items-center gap-1.5 text-[13px] font-semibold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
-            >
-              <Flag className="w-3.5 h-3.5" /> Report Issue
-            </button>
-          </div>
-        )}
-
-        {/* Dedicated Author / Creator Section */}
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        {/* Dedicated Author / Creator Section - Hidden on Print */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 print:hidden">
           <Link
             href={authorProfileHref}
             className="flex items-center gap-4 group cursor-pointer"
@@ -800,8 +790,8 @@ export default function LessonDetail() {
           </Button>
         </div>
 
-        {/* Comment & Discussion Section */}
-        <section className="flex flex-col gap-6 pt-4">
+        {/* Comment & Discussion Section - Hidden on Print */}
+        <section className="flex flex-col gap-6 pt-4 print:hidden">
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-[#0f766e]" />
@@ -911,6 +901,54 @@ export default function LessonDetail() {
           )}
         </section>
       </article>
+
+      {/* SHARE MODAL */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs px-4">
+          <div className="w-full max-w-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-2xl flex flex-col gap-5">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+              <h2 className="text-zinc-900 dark:text-white font-bold text-lg">Share Lesson</h2>
+              <button
+                onClick={() => setIsShareModalOpen(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-center gap-4 py-4">
+              <FacebookShareButton url={currentUrl} quote={shareTitle}>
+                <FacebookIcon size={48} round className="hover:opacity-80 transition-opacity" />
+              </FacebookShareButton>
+
+              <TwitterShareButton url={currentUrl} title={shareTitle}>
+                <XIcon size={48} round className="hover:opacity-80 transition-opacity" />
+              </TwitterShareButton>
+
+              <LinkedinShareButton url={currentUrl} title={shareTitle}>
+                <LinkedinIcon size={48} round className="hover:opacity-80 transition-opacity" />
+              </LinkedinShareButton>
+
+              <WhatsappShareButton url={currentUrl} title={shareTitle} separator=":: ">
+                <WhatsappIcon size={48} round className="hover:opacity-80 transition-opacity" />
+              </WhatsappShareButton>
+            </div>
+
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-xl text-sm text-zinc-500 truncate select-all">
+                {currentUrl}
+              </div>
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#0f766e] hover:bg-[#0d6e63] text-white text-sm font-semibold transition-colors cursor-pointer shrink-0"
+              >
+                {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copiedLink ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* REPORT CONFIRMATION MODAL */}
       {isReportModalOpen && (

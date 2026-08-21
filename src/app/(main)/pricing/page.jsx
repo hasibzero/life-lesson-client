@@ -10,6 +10,7 @@ import {
   Star,
   ShieldCheck,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -19,7 +20,6 @@ export default function PricingPage() {
   const isPremiumUser =
     user?.role === "admin" || user?.plan === "premium" || user?.isPremium;
 
-  // Unified loading state
   const [isProcessing, setIsProcessing] = useState(false);
 
   const comparisonRows = [
@@ -80,7 +80,7 @@ export default function PricingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: user?.email, 
+          email: user?.email,
           userId: user?.id,
         }),
       });
@@ -89,7 +89,6 @@ export default function PricingPage() {
 
       if (res.ok && data.url) {
         toast.dismiss(toastId);
-        // Navigates directly to Stripe Checkout
         window.location.href = data.url;
       } else {
         toast.error(data.error || "Unable to start checkout.", { id: toastId });
@@ -106,7 +105,7 @@ export default function PricingPage() {
 
   if (isPending) {
     return (
-      <div className="w-full min-h-[70vh] flex items-center justify-center">
+      <div className="w-full min-h-[75vh] flex items-center justify-center bg-[#f9fafb] dark:bg-[#0c0c0e]">
         <Spinner size="lg" color="current" className="text-[#0f766e]" />
       </div>
     );
@@ -115,20 +114,23 @@ export default function PricingPage() {
   // Active Premium State View
   if (isPremiumUser) {
     return (
-      <div className="w-full min-h-[75vh] flex items-center justify-center px-4 py-16 font-sans">
-        <div className="max-w-xl w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 sm:p-12 text-center shadow-lg flex flex-col items-center">
-          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-6 border border-amber-200/60 dark:border-amber-500/20">
-            <Star className="w-8 h-8 fill-amber-500 text-amber-500" />
+      <div className="relative w-full min-h-[80vh] flex items-center justify-center px-4 py-16 font-sans bg-[#f9fafb] dark:bg-[#0c0c0e] overflow-hidden">
+        {/* Decorative Background Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[600px] h-[300px] bg-amber-500/10 dark:bg-amber-500/20 blur-[100px] rounded-full pointer-events-none" />
+
+        <div className="relative z-10 max-w-xl w-full bg-white dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] p-8 sm:p-14 text-center shadow-xl flex flex-col items-center">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-500/20 dark:to-amber-500/5 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-6 border border-amber-200/60 dark:border-amber-500/20 shadow-inner">
+            <Star className="w-10 h-10 fill-amber-500 text-amber-500" />
           </div>
 
-          <Chip className="bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 font-bold px-3 py-1 mb-4 border border-amber-200/50">
+          <Chip className="bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 font-extrabold px-4 py-1.5 mb-5 border border-amber-200/50 dark:border-amber-500/20">
             Premium ⭐ Active
           </Chip>
 
-          <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight mb-3">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-zinc-900 dark:text-white tracking-tight mb-4">
             You Have Lifetime Access
           </h1>
-          <p className="text-[15px] text-zinc-600 dark:text-zinc-400 leading-relaxed mb-8 max-w-md">
+          <p className="text-[16px] text-zinc-600 dark:text-zinc-400 leading-relaxed mb-10 max-w-md">
             Your account is already unlocked with full creator tools, unlimited
             publishing, and complete access to all premium wisdom modules.
           </p>
@@ -141,8 +143,8 @@ export default function PricingPage() {
             }
             className="w-full sm:w-auto"
           >
-            <Button className="w-full sm:w-auto bg-[#0f766e] hover:bg-[#0d6e63] text-white font-semibold px-8 py-3 rounded-xl transition-all shadow-sm">
-              Go to Dashboard <ArrowRight className="w-4 h-4" />
+            <Button className="w-full sm:w-auto bg-[#0f766e] hover:bg-[#0d6e63] text-white font-bold px-10 py-3.5 rounded-xl transition-all shadow-md hover:shadow-teal-500/20 active:scale-[0.98]">
+              Go to Dashboard <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
         </div>
@@ -150,38 +152,48 @@ export default function PricingPage() {
     );
   }
 
+  // Standard Upgrade View
   return (
-    <div className="w-full min-h-screen bg-slate-50 dark:bg-black py-16 px-4 sm:px-8 lg:px-16 font-sans">
-      <div className="max-w-5xl mx-auto flex flex-col gap-12">
+    <div className="relative w-full min-h-screen bg-[#f9fafb] dark:bg-[#0c0c0e] py-20 px-4 sm:px-6 lg:px-8 font-sans overflow-hidden">
+      {/* Decorative Background Glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[1000px] h-[400px] bg-[#0f766e]/10 dark:bg-[#0f766e]/15 blur-[120px] rounded-full pointer-events-none" />
+
+      <div className="relative z-10 max-w-5xl mx-auto flex flex-col gap-14">
+        
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto flex flex-col gap-3">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
-            Upgrade to Lifetime Premium
+        <div className="text-center max-w-2xl mx-auto flex flex-col items-center gap-4">
+          
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-zinc-900 dark:text-white tracking-tight leading-[1.15]">
+            Invest in your{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0f766e] to-teal-400 dark:from-[#16A696] dark:to-teal-300">
+              Personal Growth
+            </span>
           </h1>
-          <p className="text-[15px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
+          <p className="text-[16px] text-zinc-600 dark:text-zinc-400 leading-relaxed mt-2">
             One single payment. Unlimited publishing, exclusive community perks,
             and full access to every premium lesson forever.
           </p>
         </div>
 
         {/* Pricing Tier Highlights Card */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch max-w-4xl mx-auto w-full">
+          
           {/* Free Standard Tier */}
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 flex flex-col justify-between shadow-sm">
+          <div className="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-[2rem] p-8 sm:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md">
             <div>
-              <span className="text-[13px] font-bold uppercase tracking-wider text-zinc-400">
+              <span className="text-[13px] font-extrabold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                 Current Plan
               </span>
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mt-1">
+              <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white mt-2">
                 Free Tier
               </h2>
-              <div className="flex items-baseline gap-1 my-4">
-                <span className="text-4xl font-extrabold text-zinc-900 dark:text-white">
+              <div className="flex items-baseline gap-1 my-5">
+                <span className="text-5xl font-extrabold text-zinc-900 dark:text-white">
                   ৳0
                 </span>
-                <span className="text-zinc-500 text-[14px]">/ lifetime</span>
+                <span className="text-zinc-500 font-medium text-[15px]">/ lifetime</span>
               </div>
-              <p className="text-[14px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              <p className="text-[15px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
                 Basic access to browse community modules with limited lesson
                 contributions.
               </p>
@@ -191,7 +203,7 @@ export default function PricingPage() {
               <Button
                 disabled
                 variant="bordered"
-                className="w-full border-zinc-200 dark:border-zinc-800 text-zinc-400 font-semibold rounded-xl py-6 cursor-not-allowed"
+                className="w-full border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-400 font-bold rounded-xl py-6 cursor-not-allowed opacity-70"
               >
                 Your Current Tier
               </Button>
@@ -199,57 +211,61 @@ export default function PricingPage() {
           </div>
 
           {/* Premium Lifetime Tier */}
-          <div className="bg-gradient-to-br from-[#0f766e] to-[#115e59] text-white rounded-3xl p-8 flex flex-col justify-between shadow-xl relative overflow-hidden ring-2 ring-[#0f766e]">
-            <div className="absolute top-4 right-4 bg-amber-400 text-zinc-950 text-[11px] font-extrabold px-3 py-1 rounded-full shadow-sm">
+          <div className="bg-gradient-to-br from-[#0f766e] to-[#0d5c56] dark:from-[#116e67] dark:to-[#0a3f3a] text-white rounded-[2rem] p-8 sm:p-10 flex flex-col justify-between shadow-2xl shadow-teal-900/20 relative overflow-hidden ring-1 ring-white/20">
+            <div className="absolute top-5 right-5 bg-amber-400 text-zinc-950 text-[11px] font-extrabold px-3.5 py-1.5 rounded-full shadow-sm">
               ONE-TIME PAYMENT
             </div>
 
-            <div>
-              <span className="text-[13px] font-bold uppercase tracking-wider text-teal-200">
+            <div className="relative z-10">
+              <span className="text-[13px] font-extrabold uppercase tracking-wider text-teal-200">
                 Lifetime Access
               </span>
-              <h2 className="text-2xl font-extrabold text-white mt-1">
-                Premium Member
+              <h2 className="text-2xl font-extrabold text-white mt-2 flex items-center gap-2">
+                Premium Member <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
               </h2>
-              <div className="flex items-baseline gap-1.5 my-4">
-                <span className="text-5xl font-extrabold tracking-tight">
+              <div className="flex items-baseline gap-1.5 my-5">
+                <span className="text-5xl font-extrabold tracking-tight text-white drop-shadow-sm">
                   ৳1,500
                 </span>
                 <span className="text-teal-100 text-[15px] font-medium">
                   / one-time
                 </span>
               </div>
-              <p className="text-[14px] text-teal-50 leading-relaxed">
+              <p className="text-[15px] text-teal-50/90 leading-relaxed">
                 Unlock unrestricted creation, verified badge, ad-free reading,
                 and full premium catalog access.
               </p>
             </div>
 
-            <div className="pt-8">
+            <div className="pt-8 relative z-10">
               <Button
                 onClick={handleStripeCheckout}
                 disabled={isProcessing}
-                className="w-full bg-white hover:bg-zinc-100 text-[#0f766e] font-extrabold text-[15px] rounded-xl py-6 transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                className="w-full bg-white hover:bg-zinc-50 text-[#0f766e] font-extrabold text-[16px] rounded-xl py-6 transition-all shadow-lg active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
               >
                 {isProcessing ? (
                   <Spinner size="sm" color="current" />
                 ) : (
                   <>
-                    Upgrade to Premium <ArrowRight className="w-4 h-4" />
+                    Upgrade to Premium <ArrowRight className="w-5 h-5 ml-1" />
                   </>
                 )}
               </Button>
             </div>
+            
+            {/* Abstract Background shapes for Premium Card */}
+            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -top-24 -left-24 w-48 h-48 bg-teal-400/10 rounded-full blur-xl pointer-events-none" />
           </div>
         </div>
 
         {/* Free vs Premium Comparison Table */}
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
+        <div className="bg-white dark:bg-zinc-900/60 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden flex flex-col mx-auto w-full max-w-4xl">
+          <div className="p-8 border-b border-zinc-200 dark:border-zinc-800 text-center sm:text-left">
+            <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white">
               Feature Breakdown & Comparison
             </h2>
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+            <p className="text-[14px] text-zinc-500 dark:text-zinc-400 mt-2">
               Detailed breakdown of features included across both tiers.
             </p>
           </div>
@@ -257,25 +273,25 @@ export default function PricingPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[640px]">
               <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[13px] font-bold text-zinc-500 uppercase tracking-wider bg-zinc-50/50 dark:bg-zinc-900/50">
-                  <th className="py-4 px-6 w-1/2">Features</th>
-                  <th className="py-4 px-6 text-center w-1/4">Free</th>
-                  <th className="py-4 px-6 text-center w-1/4 text-[#0f766e] dark:text-[#16A696]">
+                <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[13px] font-extrabold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider bg-zinc-50/80 dark:bg-zinc-900/80">
+                  <th className="py-5 px-8 w-1/2">Features</th>
+                  <th className="py-5 px-6 text-center w-1/4">Free</th>
+                  <th className="py-5 px-6 text-center w-1/4 text-[#0f766e] dark:text-[#16A696]">
                     Premium
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 text-[14px]">
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[15px]">
                 {comparisonRows.map((row, idx) => (
                   <tr
                     key={idx}
                     className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors"
                   >
-                    <td className="py-4 px-6 font-semibold text-zinc-800 dark:text-zinc-200">
+                    <td className="py-5 px-8 font-semibold text-zinc-800 dark:text-zinc-200">
                       {row.feature}
                     </td>
 
-                    <td className="py-4 px-6 text-center">
+                    <td className="py-5 px-6 text-center">
                       {typeof row.free === "boolean" ? (
                         row.free ? (
                           <Check className="w-5 h-5 text-emerald-600 mx-auto" />
@@ -283,13 +299,13 @@ export default function PricingPage() {
                           <CrossIcon className="w-5 h-5 text-zinc-300 dark:text-zinc-600 mx-auto" />
                         )
                       ) : (
-                        <span className="font-semibold text-zinc-500">
+                        <span className="font-semibold text-zinc-500 dark:text-zinc-400">
                           {row.free}
                         </span>
                       )}
                     </td>
 
-                    <td className="py-4 px-6 text-center bg-teal-50/30 dark:bg-teal-950/10">
+                    <td className="py-5 px-6 text-center bg-teal-50/40 dark:bg-teal-900/10">
                       {typeof row.premium === "boolean" ? (
                         row.premium ? (
                           <Check className="w-5 h-5 text-[#0f766e] dark:text-[#16A696] font-bold mx-auto" />
@@ -310,16 +326,16 @@ export default function PricingPage() {
         </div>
 
         {/* Security & Guarantee Note */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-[13px] text-zinc-500 dark:text-zinc-400 text-center pb-8">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 text-[14px] font-medium text-zinc-500 dark:text-zinc-400 text-center pb-8">
           <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-[#0f766e]" /> 256-bit Encrypted
-            Stripe Checkout
+            <ShieldCheck className="w-4 h-4 text-[#0f766e] dark:text-[#16A696]" /> 256-bit Encrypted Stripe Checkout
           </span>
-          <span>•</span>
+          <span className="hidden sm:inline">•</span>
           <span>Instant Account Upgrade</span>
-          <span>•</span>
+          <span className="hidden sm:inline">•</span>
           <span>Lifetime Access (No Recurring Fees)</span>
         </div>
+        
       </div>
     </div>
   );
