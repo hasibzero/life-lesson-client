@@ -47,10 +47,14 @@ export default function AdminManageLessonsPage() {
 
   // Fetch Lessons & Reports in Parallel
   const fetchData = async () => {
-    const tokenRes = await authClient.token();
-    const token = tokenRes?.data?.token;
-
     try {
+      const tokenRes = await authClient.token();
+      const token = tokenRes?.data?.token;
+
+      if (!token) {
+        console.warn("⚠️ Warning: Token is missing! The browser might be fetching too fast.");
+      }
+
       const [lessonsRes, reportsRes] = await Promise.all([
         fetch(`${backendUrl}/api/lessons/admin-all`, {
           headers: {
@@ -68,12 +72,19 @@ export default function AdminManageLessonsPage() {
         const lessonsData = await lessonsRes.json();
         setLessons(lessonsData);
       } else {
-        toast.error("Failed to load platform lessons.");
+        // 🚨 THIS WILL TELL US THE EXACT ERROR
+        const errorText = await lessonsRes.text();
+        console.error("🚨 Backend Error (Lessons):", lessonsRes.status, errorText);
+        toast.error(`Failed to load lessons: ${lessonsRes.status}`);
       }
 
       if (reportsRes.ok) {
         const reportsData = await reportsRes.json();
         setReports(reportsData);
+      } else {
+        // 🚨 THIS WILL TELL US THE EXACT ERROR
+        const errorText = await reportsRes.text();
+        console.error("🚨 Backend Error (Reports):", reportsRes.status, errorText);
       }
     } catch (error) {
       console.error("Error fetching lesson management data:", error);
