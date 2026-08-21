@@ -34,16 +34,18 @@ export default function LessonsCard() {
 
   useEffect(() => {
     const fetchLessons = async () => {
-      
       try {
+        // 👈 Added a safe fallback URL so it never evaluates to undefined
         const backendUrl =
-          process.env.NEXT_PUBLIC_BACKEND_URL ;
+          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
         const response = await fetch(`${backendUrl}/api/lessons/featured`);
 
         if (response.ok) {
           const data = await response.json();
           setLessons(data);
         } else {
+          console.error("Backend returned non-OK status:", response.status);
           toast.error("Failed to load featured lessons.");
         }
       } catch (error) {
@@ -82,7 +84,6 @@ export default function LessonsCard() {
         <p className="text-lg font-medium text-zinc-700 dark:text-zinc-300">
           No featured lessons available right now.
         </p>
-        
       </div>
     );
   }
@@ -164,7 +165,9 @@ export default function LessonsCard() {
 
                 <div className="mt-auto flex items-center gap-3">
                   {lesson?.creatorAvatar ? (
-                    <ImageWithSpinner width={500} height={500}
+                    <ImageWithSpinner
+                      width={500}
+                      height={500}
                       src={lesson.creatorAvatar}
                       alt="Creator"
                       className="w-9 h-9 rounded-full object-cover border border-zinc-200 dark:border-zinc-700 shrink-0"
