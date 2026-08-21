@@ -30,20 +30,26 @@ export default function AddLesson() {
   const { data: session } = authClient.useSession();
   const user = session?.user;
 
-  const isPremiumUser = user?.role === "admin" || user?.plan === "premium";
+  // 👈 CHANGED: Case-insensitive check for user role / plan
+  const userRole = user?.role?.toLowerCase();
+  const userPlan = user?.plan?.toLowerCase();
+  const isPremiumUser =
+    userRole === "admin" || userPlan === "premium" || Boolean(user?.isPremium);
   const hasReachedLimit = !isPremiumUser && userLessonCount >= 3;
 
   useEffect(() => {
     const fetchLessonCount = async () => {
       if (!user?.id) return;
       try {
-        const backendUrl =
+        const rawBackendUrl =
           process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+        // 👈 CHANGED: Stripped trailing slash from backend URL
+        const backendUrl = rawBackendUrl.replace(/\/$/, "");
         const response = await fetch(`${backendUrl}/api/my-lessons/${user.id}`);
 
         if (response.ok) {
           const data = await response.json();
-          setUserLessonCount(data.length);
+          setUserLessonCount(Array.isArray(data) ? data.length : 0);
         }
       } catch (error) {
         console.error("Error fetching lesson count:", error);
@@ -87,15 +93,29 @@ export default function AddLesson() {
 
     const tokenRes = await authClient.token();
     const token = tokenRes?.data?.token;
-    // console.log("User Token:", token);
     let uploadedImageUrl = "";
 
+    // 👈 CHANGED: Robust ImgBB upload with explicit API key verification and error details
     if (data.coverImage && data.coverImage.length > 0) {
+      const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+
+      // Check if API key exists before attempting upload
+      if (!apiKey) {
+        console.error(
+          "Missing NEXT_PUBLIC_IMGBB_API_KEY environment variable.",
+        );
+        toast.error("ImgBB API key is missing. Check your .env file.", {
+          id: toastId,
+        });
+        setIsSubmitting(false);
+        setSubmitType(null);
+        return;
+      }
+
       const formData = new FormData();
       formData.append("image", data.coverImage[0]);
 
       try {
-        const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
         const res = await fetch(
           `https://api.imgbb.com/1/upload?key=${apiKey}`,
           {
@@ -105,26 +125,34 @@ export default function AddLesson() {
         );
 
         const imgData = await res.json();
+
         if (imgData.success) {
           uploadedImageUrl = imgData.data.url;
         } else {
-          toast.error("Image upload failed.", { id: toastId });
+          // 👈 CHANGED: Shows the actual reason from ImgBB (e.g. invalid key, unsupported file)
+          console.error("ImgBB upload error response:", imgData);
+          const detailedMsg = imgData?.error?.message || "Image upload failed.";
+          toast.error(`Upload error: ${detailedMsg}`, { id: toastId });
           setIsSubmitting(false);
+          setSubmitType(null);
           return;
         }
       } catch (error) {
-        console.error("Image upload error:", error);
-        toast.error("Failed to upload image.", { id: toastId });
+        console.error("Image upload network error:", error);
+        toast.error("Failed to connect to ImgBB upload server.", {
+          id: toastId,
+        });
         setIsSubmitting(false);
+        setSubmitType(null);
         return;
       }
     }
 
     const lessonPayload = {
-      title: data.title,
-      description: data.description,
+      title: data.title?.trim(),
+      description: data.description?.trim(),
       category: data.category,
-      emotionalTone: data.emotionalTone || "Neutral",
+      emotionalTone: data.emotionalTone || "Motivational",
       visibility: actionRef.current === "draft" ? "Draft" : "Public",
       accessLevel: isPremiumUser ? accessLevel : "Free",
       creatorId: user?.id || null,
@@ -132,22 +160,22 @@ export default function AddLesson() {
       likes: [],
       likesCount: 0,
       isFeatured: false,
-      isReviewed: false, // Added in review pending admin inspection
+      isReviewed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    const backendUrl =
+    const rawBackendUrl =
       process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+    const backendUrl = rawBackendUrl.replace(/\/$/, "");
 
     try {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const response = await fetch(`${backendUrl}/api/add-lesson`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-
-          'Authorization': `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(lessonPayload),
       });
 
@@ -164,7 +192,11 @@ export default function AddLesson() {
         setImagePreview(null);
         setAccessLevel("Free");
       } else {
-        toast.error("Failed to save lesson.", { id: toastId });
+        // 👈 CHANGED: Captures and displays exact error message returned by backend
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.message || "Failed to save lesson.", {
+          id: toastId,
+        });
       }
     } catch (error) {
       console.error("Submission error:", error);
@@ -176,7 +208,7 @@ export default function AddLesson() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto w-full">
+    <div className="max-w-5xl mx-auto w-full font-sans">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-[#1a202c] dark:text-white tracking-tight mb-2">
@@ -257,7 +289,9 @@ export default function AddLesson() {
                 className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-[#16A696] dark:hover:border-[#16A696] rounded-xl bg-zinc-50 dark:bg-[#121214] transition-colors overflow-hidden group ${hasReachedLimit ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
               >
                 {imagePreview ? (
-                  <ImageWithSpinner width={500} height={500}
+                  <ImageWithSpinner
+                    width={500}
+                    height={500}
                     src={imagePreview}
                     alt="Preview"
                     className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
@@ -317,6 +351,9 @@ export default function AddLesson() {
                   </option>
                   <option value="Productivity" className="dark:bg-zinc-900">
                     Productivity
+                  </option>
+                  <option value="Wealth" className="dark:bg-zinc-900">
+                    Wealth
                   </option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500">
