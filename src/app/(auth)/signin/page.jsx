@@ -125,6 +125,14 @@ export default function SignIn() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    
+    const data = await authClient.signIn.social({
+    provider: "google",
+
+  });
+  }
+
   return (
     <main className="min-h-screen w-full flex flex-col items-center justify-center bg-[#f8fafc] dark:bg-zinc-950 px-4 py-12 transition-colors duration-300">
       
@@ -255,6 +263,7 @@ export default function SignIn() {
 
           {/* Social Login Button */}
           <Button
+            onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-300 dark:border-zinc-700 text-[#1a202c] dark:text-white font-semibold text-[14px] py-2.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
           >
             <GoogleIcon />

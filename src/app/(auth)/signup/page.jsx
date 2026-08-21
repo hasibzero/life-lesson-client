@@ -152,10 +152,13 @@ export default function SignUp() {
 
       try {
         const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
-        const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-          method: "POST",
-          body: formData,
-        });
+        const res = await fetch(
+          `https://api.imgbb.com/1/upload?key=${apiKey}`,
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
 
         const imgData = await res.json();
         if (imgData.success) {
@@ -181,14 +184,23 @@ export default function SignUp() {
     });
 
     if (error) {
-      toast.error(error.message || "Failed to create account. Please try again.", {
-        id: toastId,
-      });
+      toast.error(
+        error.message || "Failed to create account. Please try again.",
+        {
+          id: toastId,
+        },
+      );
       console.log("Sign up error:", error);
     } else {
       toast.success("Account created successfully!", { id: toastId });
       router.push("/signin");
     }
+  };
+
+  const handleGoogleSignIn = async () => {
+    const data = await authClient.signIn.social({
+      provider: "google",
+    });
   };
 
   return (
@@ -442,7 +454,9 @@ export default function SignUp() {
             <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
           </div>
 
-          <Button className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-300 dark:border-zinc-700 text-[#1a202c] dark:text-white font-semibold text-[14px] py-2.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
+          <Button
+          onClick={handleGoogleSignIn}
+          className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-300 dark:border-zinc-700 text-[#1a202c] dark:text-white font-semibold text-[14px] py-2.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
             <GoogleIcon />
             Continue with Google
           </Button>
