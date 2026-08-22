@@ -456,8 +456,8 @@ export default function SignUp() {
           </div>
 
           <Button
-          onClick={handleGoogleSignIn}
-          className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-300 dark:border-zinc-700 text-[#1a202c] dark:text-white font-semibold text-[14px] py-2.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
+            onClick={handleGoogleSignIn}
+            className="w-full flex items-center justify-center gap-2 bg-transparent border border-zinc-300 dark:border-zinc-700 text-[#1a202c] dark:text-white font-semibold text-[14px] py-2.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
             <GoogleIcon />
             Continue with Google
           </Button>

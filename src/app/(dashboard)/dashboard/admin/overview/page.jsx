@@ -296,11 +296,10 @@ export default function AdminOverviewPage() {
                     {item.count}
                   </span>
                   <div
-                    className={`w-full max-w-[36px] rounded-t-lg transition-all duration-500 ${
-                      item.count > 0
+                    className={`w-full max-w-[36px] rounded-t-lg transition-all duration-500 ${item.count > 0
                         ? "bg-[#0f766e] dark:bg-[#16A696]"
                         : "bg-zinc-100 dark:bg-zinc-800"
-                    }`}
+                      }`}
                     style={{ height: `${barHeight}%` }}
                   />
                   <span className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 mt-2">
@@ -353,11 +352,10 @@ export default function AdminOverviewPage() {
                     {item.count}
                   </span>
                   <div
-                    className={`w-full max-w-[36px] rounded-t-lg transition-all duration-500 ${
-                      item.count > 0
+                    className={`w-full max-w-[36px] rounded-t-lg transition-all duration-500 ${item.count > 0
                         ? "bg-indigo-600 dark:bg-indigo-500"
                         : "bg-zinc-100 dark:bg-zinc-800"
-                    }`}
+                      }`}
                     style={{ height: `${barHeight}%` }}
                   />
                   <span className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 mt-2">

@@ -426,11 +426,10 @@ export default function AddLesson() {
                     value={accessLevel}
                     onChange={(e) => setAccessLevel(e.target.value)}
                     disabled={hasReachedLimit || !isPremiumUser}
-                    className={`w-full appearance-none bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#16A696] transition-colors ${
-                      !isPremiumUser || hasReachedLimit
+                    className={`w-full appearance-none bg-transparent border border-zinc-300 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-[14px] text-zinc-900 dark:text-white outline-none focus:border-[#16A696] transition-colors ${!isPremiumUser || hasReachedLimit
                         ? "cursor-not-allowed opacity-60 bg-zinc-100/50 dark:bg-zinc-900/50"
                         : "cursor-pointer"
-                    }`}
+                      }`}
                   >
                     <option value="Free" className="dark:bg-zinc-900">
                       Free
